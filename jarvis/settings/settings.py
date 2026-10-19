@@ -33,6 +33,9 @@ DEFAULTS: dict[str, Any] = {
         "device_index": None,  # None = microfone padrão
         "sample_rate": 16000,
         "listen_timeout": 8,
+        "vad_sensitivity": 1.0,   # 0.5 (menos) .. 2.0 (mais sensível)
+        "silence_ms": 480,
+        "min_speech_ms": 200,
     },
     "tts": {
         "enabled": True,
@@ -72,7 +75,9 @@ _SCHEMA: dict[str, Any] = {
                  "unknown_command_help": bool},
     "voice": {"enabled": bool, "wake_word_required": bool, "wake_words": list,
               "model_path": str, "device_index": (int, type(None)),
-              "sample_rate": int, "listen_timeout": (int, float)},
+              "sample_rate": int, "listen_timeout": (int, float),
+              "vad_sensitivity": (int, float), "silence_ms": (int, float),
+              "min_speech_ms": (int, float)},
     "tts": {"enabled": bool, "voice_id": str, "rate": int, "volume": (int, float)},
     "intro": {"enabled": bool, "sound": bool},
     "startup": {"start_minimized": bool, "autostart": bool},
@@ -148,6 +153,26 @@ def _validate_ui(data: dict[str, Any]) -> None:
     ui["nucleus_fps"] = 60 if fps >= 45 else 30
 
 
+def _validate_voice(data: dict[str, Any]) -> None:
+    voice = data.get("voice")
+    if not isinstance(voice, dict):
+        data["voice"] = copy.deepcopy(DEFAULTS["voice"])
+        return
+    try:
+        sens = float(voice.get("vad_sensitivity", 1.0))
+    except (TypeError, ValueError):
+        sens = 1.0
+    voice["vad_sensitivity"] = min(2.0, max(0.5, sens))
+    try:
+        voice["silence_ms"] = min(1500, max(200, int(voice.get("silence_ms", 480))))
+    except (TypeError, ValueError):
+        voice["silence_ms"] = 480
+    try:
+        voice["min_speech_ms"] = min(800, max(80, int(voice.get("min_speech_ms", 200))))
+    except (TypeError, ValueError):
+        voice["min_speech_ms"] = 200
+
+
 class SettingsManager:
     """Gerencia settings.json com validação, recuperação e acesso por pontos."""
 
@@ -173,6 +198,7 @@ class SettingsManager:
             for key, default in DEFAULTS.items():
                 clean.setdefault(key, copy.deepcopy(default))
             _validate_ui(clean)
+            _validate_voice(clean)
             self._data = clean
             # persiste a versão saneada (auto-recuperação)
             self._store.save(self._data)
@@ -202,6 +228,7 @@ class SettingsManager:
             for key, default in DEFAULTS.items():
                 self._data.setdefault(key, copy.deepcopy(default))
             _validate_ui(self._data)
+            _validate_voice(self._data)
             ok = self._store.save(self._data)
             log.info("Config '%s' atualizada (persistido=%s)", dotted_key, ok)
             return ok

@@ -24,6 +24,7 @@ log = get_logger("voice.recognizer")
 class Transcript:
     text: str
     is_final: bool = True
+    reason: str = ""
 
 
 def default_model_dir() -> Path:
@@ -80,7 +81,8 @@ class LocalRecognizer:
         raise NotImplementedError
 
     def listen_once(self, mic, timeout: float = 8.0,
-                    on_partial: Optional[Callable[[str], None]] = None) -> Transcript:
+                    on_partial: Optional[Callable[[str], None]] = None,
+                    **kwargs) -> Transcript:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -102,9 +104,10 @@ class UnavailableRecognizer(LocalRecognizer):
         return Transcript("", is_final=True)
 
     def listen_once(self, mic, timeout: float = 8.0,
-                    on_partial: Optional[Callable[[str], None]] = None) -> Transcript:
+                    on_partial: Optional[Callable[[str], None]] = None,
+                    **kwargs) -> Transcript:
         log.warning("Reconhecimento indisponível: %s", self._reason)
-        return Transcript("", is_final=True)
+        return Transcript("", is_final=True, reason="unavailable")
 
 
 class VoskRecognizer(LocalRecognizer):
@@ -167,28 +170,34 @@ class VoskRecognizer(LocalRecognizer):
             return Transcript("", is_final=True)
 
     def listen_once(self, mic, timeout: float = 8.0,
-                    on_partial: Optional[Callable[[str], None]] = None) -> Transcript:
-        import time
+                    on_partial: Optional[Callable[[str], None]] = None,
+                    **kwargs) -> Transcript:
+        """Captura UMA fala com VAD e transcreve localmente.
 
+        Não devolve no primeiro AcceptWaveform do Vosk (cortava a frase).
+        Espera o fim da fala (silêncio consecutivo) ou o timeout.
+        """
         if not self.is_ready():
-            return Transcript("", is_final=True)
-        stream = mic.open_stream()
-        if stream is None:
-            return Transcript("", is_final=True)
+            return Transcript("", is_final=True, reason="unavailable")
+
+        from jarvis.voice.capture import iter_utterance
+        from jarvis.voice.vad import EnergyVAD
+
+        vad = kwargs.get("vad") or EnergyVAD()
+        on_level = kwargs.get("on_level")
+        on_event = kwargs.get("on_event")
         rec = self._new_recognizer()
-        deadline = time.time() + timeout
+        parts: list[str] = []
         try:
-            while time.time() < deadline:
-                chunk = stream.read(4000)  # RawInputStream.read -> bytes
-                data = bytes(chunk)
-                if not data:
-                    continue
+            for data, _analysis in iter_utterance(
+                    mic, vad, timeout=float(timeout),
+                    on_level=on_level, on_event=on_event):
                 if rec.AcceptWaveform(data):
                     result = json.loads(rec.Result() or "{}")
                     text = str(result.get("text", "") or "").strip()
                     if text:
-                        log.info("Transcrito (mic): %r", text)
-                        return Transcript(text, is_final=True)
+                        parts.append(text)
+                        log.info("[RAW TRANSCRIPT] parcial=%r", text)
                 elif on_partial:
                     try:
                         partial = json.loads(rec.PartialResult() or "{}")
@@ -197,14 +206,16 @@ class VoskRecognizer(LocalRecognizer):
                     except Exception:
                         pass
             final = json.loads(rec.FinalResult() or "{}")
-            text = str(final.get("text", "") or "").strip()
-            log.info("Transcrito (mic, final): %r", text)
-            return Transcript(text, is_final=True)
+            last = str(final.get("text", "") or "").strip()
+            if last:
+                parts.append(last)
+            text = " ".join(parts).strip()
+            reason = "speech" if text else ("silence" if not vad.started else "empty")
+            log.info("[RAW TRANSCRIPT] %r motivo=%s", text, reason)
+            return Transcript(text, is_final=True, reason=reason)
         except Exception:
             log.exception("listen_once falhou")
-            return Transcript("", is_final=True)
-        finally:
-            mic.close_stream()
+            return Transcript("", is_final=True, reason="error")
 
     def close(self) -> None:
         with self._lock:

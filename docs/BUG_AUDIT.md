@@ -1,4 +1,4 @@
-# BUG AUDIT — J.A.R.V.I.S. 2.1.0 (PROMPT 4)
+# BUG AUDIT — J.A.R.V.I.S. 2.2.0
 
 > Caça sistemática a bugs **antes** de declarar o produto pronto. Quatro
 > ciclos, focos diferentes, scripts em `docs/audit/`. Só há "PRONTO" porque
@@ -174,6 +174,24 @@ Script: `docs/audit/cycle4_final.py`.
 - **REPRODUÇÃO:** `python main.py --exec "mostre a hora"` → UNKNOWN.
 - **CORREÇÃO:** aliases em `jarvis/commands/native.py`.
 - **REGRESSÃO:** `tests/test_engine.py` + `tests/test_final.py::test_prompt_examples_text_and_voice`.
+- **STATUS:** CORRIGIDO.
+
+**BUG-011**
+- **BUG:** captura de microfone sempre vazia no Windows com `sounddevice`.
+- **CAUSA:** `RawInputStream.read()` devolve `(data, overflowed)`; o código fazia `bytes(chunk)` no tuple.
+- **SEVERIDADE:** CRÍTICO (voz real inutilizável).
+- **REPRODUÇÃO:** `listen_once` com sounddevice instalado — transcrição sempre `""`.
+- **CORREÇÃO:** `unpack_pcm()` em `jarvis/voice/vad.py`; captura em `jarvis/voice/capture.py`.
+- **REGRESSÃO:** `tests/test_vad.py::test_unpack_pcm_tuple_from_sounddevice`.
+- **STATUS:** CORRIGIDO.
+
+**BUG-012**
+- **BUG:** a frase era cortada no primeiro `AcceptWaveform` do Vosk (antes do usuário terminar).
+- **CAUSA:** `listen_once` retornava imediatamente ao primeiro resultado parcial-final do Vosk, sem VAD de fim de fala.
+- **SEVERIDADE:** ALTO.
+- **REPRODUÇÃO:** falar "J.A.R.V.I.S., abra o navegador" pausando no meio — só "jarvis" ou "abra" chegava.
+- **CORREÇÃO:** VAD por energia (calibração + silêncio ~480 ms + mínimo de fala) acumula segmentos até o fim.
+- **REGRESSÃO:** `tests/test_vad.py` (fala/silêncio/mínimo) + `capture_utterance` com microfone falso.
 - **STATUS:** CORRIGIDO.
 
 **BUG-010**

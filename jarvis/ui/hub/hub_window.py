@@ -10,9 +10,9 @@ from __future__ import annotations
 from typing import Optional
 
 from jarvis import __version__
-from jarvis.core.events import (COMMAND_EXECUTED, COMMAND_RECEIVED,
-                                SPEECH_FINISHED, SPEECH_STARTED,
-                                STATE_CHANGED, VOICE_TRANSCRIPT)
+from jarvis.core.events import (AUDIO_EVENT, AUDIO_LEVEL, COMMAND_EXECUTED,
+                                COMMAND_RECEIVED, SPEECH_FINISHED,
+                                SPEECH_STARTED, STATE_CHANGED, VOICE_TRANSCRIPT)
 from jarvis.logger import get_logger
 from jarvis.ui.hub.audio import SfxPlayer
 from jarvis.ui.hub.nucleus import NucleusWidget
@@ -78,6 +78,8 @@ class EventBridge(QObject):
     command_result = Signal(object)       # EngineResult
     voice_text = Signal(str)
     speech_event = Signal(str, bool)      # text, started?
+    audio_level = Signal(float, str)      # rms, tag
+    audio_event = Signal(str, str)        # tag, detail
 
     def __init__(self, app, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
@@ -89,6 +91,8 @@ class EventBridge(QObject):
             (VOICE_TRANSCRIPT, self._on_voice),
             (SPEECH_STARTED, self._on_speech_start),
             (SPEECH_FINISHED, self._on_speech_end),
+            (AUDIO_LEVEL, self._on_audio_level),
+            (AUDIO_EVENT, self._on_audio_event),
         )
         for event, handler in self._subs:
             app.events.on(event, handler)
@@ -118,6 +122,12 @@ class EventBridge(QObject):
 
     def _on_speech_end(self, text="", **_) -> None:
         self.speech_event.emit(str(text), False)
+
+    def _on_audio_level(self, rms=0.0, speech=False, tag="", **_) -> None:
+        self.audio_level.emit(float(rms or 0.0), str(tag or ""))
+
+    def _on_audio_event(self, tag="", detail="", **_) -> None:
+        self.audio_event.emit(str(tag), str(detail))
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +222,8 @@ class HubWindow(QMainWindow):
         self._bridge.command_result.connect(self._on_result)
         self._bridge.voice_text.connect(self._on_voice_text)
         self._bridge.speech_event.connect(self._on_speech)
+        self._bridge.audio_level.connect(self._on_audio_level)
+        self._bridge.audio_event.connect(self._on_audio_hub_event)
 
         self._build_shortcuts()
         self.apply_theme(self._theme.id, persist=False)
@@ -273,7 +285,9 @@ class HubWindow(QMainWindow):
         self.row_mic = StatusRow("Microfone")
         self.row_rec = StatusRow("Reconhecimento")
         self.row_tts = StatusRow("Voz")
-        for row in (self.row_state, self.row_mic, self.row_rec, self.row_tts):
+        self.row_signal = StatusRow("Sinal")
+        for row in (self.row_state, self.row_mic, self.row_rec,
+                    self.row_tts, self.row_signal):
             status.add(row)
         layout.addWidget(status)
 
@@ -526,6 +540,23 @@ class HubWindow(QMainWindow):
         if started:
             self.feed.append_event("tts", f"♪ {text[:120]}")
 
+    def _on_audio_level(self, rms: float, tag: str) -> None:
+        try:
+            self.nucleus.set_level(max(0.12, min(1.0, rms * 8.0)))
+        except Exception:
+            pass
+        try:
+            label = tag or "—"
+            pct = int(max(0.0, min(1.0, rms * 6.0)) * 100)
+            self.row_signal.set_value(f"{label}  {pct:02d}%")
+        except Exception:
+            pass
+
+    def _on_audio_hub_event(self, tag: str, detail: str) -> None:
+        if not tag:
+            return
+        self.feed.append_event("mic", f"{tag.lower()} {detail}".strip()[:120])
+
     # -- miscelânea -----------------------------------------------------------------------
     def _refresh_status_panel(self) -> None:
         from jarvis.ui.hub.themes import role_color
@@ -535,9 +566,19 @@ class HubWindow(QMainWindow):
                 self._app.settings.get("voice.enabled", True)) else False
         except Exception:
             mic_ok = False
+        mic_label = "PRONTO" if mic_ok else "INDISPONÍVEL"
+        try:
+            idx = self._app.settings.get("voice.device_index")
+            if mic_ok and idx is not None:
+                mic_label = f"DEV {idx}"
+        except Exception:
+            pass
         self.row_mic.set_value(
-            "PRONTO" if mic_ok else "INDISPONÍVEL",
-            role_color(t, "success" if mic_ok else "danger"))
+            mic_label, role_color(t, "success" if mic_ok else "danger"))
+        try:
+            self.row_signal.set_value("—")
+        except Exception:
+            pass
         ready = False
         try:
             ready = self._app.recognizer.is_ready()

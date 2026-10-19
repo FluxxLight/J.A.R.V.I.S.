@@ -113,9 +113,11 @@ class SysInfoWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(SPACE_XS)
         import os
+        from jarvis import __version__
         rows = [
             ("SISTEMA", f"{platform.system()} {platform.release()}"),
             ("MODO", "LOCAL • OFFLINE"),
+            ("VERSÃO", __version__),
             ("NÚCLEOS CPU", str(os.cpu_count() or "?")),
         ]
         for key, value in rows:

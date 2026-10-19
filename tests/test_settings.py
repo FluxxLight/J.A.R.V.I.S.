@@ -33,6 +33,14 @@ def test_invalid_values_sanitized(data_dir):
     assert mgr.get("voice.enabled") is True  # seção refeita
 
 
+def test_vad_sensitivity_clamped(data_dir):
+    mgr = SettingsManager(data_dir / "settings.json")
+    mgr.set("voice.vad_sensitivity", 9.0)
+    assert mgr.get("voice.vad_sensitivity") == 2.0
+    mgr.set("voice.vad_sensitivity", 0.1)
+    assert mgr.get("voice.vad_sensitivity") == 0.5
+
+
 def test_volume_clamped(data_dir):
     mgr = SettingsManager(data_dir / "settings.json")
     mgr.set("tts.volume", 5.0)

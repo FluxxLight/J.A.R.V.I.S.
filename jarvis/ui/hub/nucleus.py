@@ -49,6 +49,7 @@ class NucleusWidget(QWidget):
         self._theme: Theme = get_theme("azul")
         self._state: str = "IDLE"
         self._level: float = 0.0
+        self._live_until: float = -1.0  # nível real de áudio (VAD) vale até este t
         self._formation: float = 1.0  # 0..1 (intro: anéis se formando)
         self._ripples: list[float] = []  # progressos 0..1
         self._flash: float = 0.0
@@ -80,6 +81,7 @@ class NucleusWidget(QWidget):
 
     def set_level(self, level: float) -> None:
         self._level = max(0.0, min(1.0, level))
+        self._live_until = self._now() + 0.28
 
     def set_formation(self, value: float) -> None:
         self._formation = max(0.0, min(1.0, value))
@@ -127,9 +129,12 @@ class NucleusWidget(QWidget):
         self._ripples = [r + dt * 0.9 for r in self._ripples if r < 1.0]
         if self._flash > 0:
             self._flash = max(0.0, self._flash - dt * 2.2)
-        # respiração do level quando falando/ouvindo (orgânico, sem áudio real)
-        if self._state in ("SPEAKING", "LISTENING"):
-            self._level = 0.55 + 0.45 * abs(math.sin(self._now() * 7.0))
+        # nível real de áudio (VAD) tem prioridade; senão respiração orgânica
+        now = self._now()
+        if now <= self._live_until:
+            pass
+        elif self._state in ("SPEAKING", "LISTENING"):
+            self._level = 0.55 + 0.45 * abs(math.sin(now * 7.0))
         else:
             self._level = max(0.0, self._level - dt * 3.0)
         self.update()

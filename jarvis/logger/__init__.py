@@ -75,11 +75,19 @@ def get_logger(name: str) -> logging.Logger:
 def log_voice_trace(logger: logging.Logger, trace: object) -> None:
     """Registra a trilha completa voz -> comando (depuração da integração)."""
     lines = ["[VOICE TRACE]"]
-    for field in (
-        "raw", "normalized", "wake_detected", "command_after_wake",
-        "engine_input", "intent", "parameters", "action",
-        "execution", "result",
-    ):
+    mapping = (
+        ("raw", "RAW TRANSCRIPT"),
+        ("normalized", "NORMALIZED"),
+        ("wake_detected", "WAKE WORD"),
+        ("command_after_wake", "COMMAND"),
+        ("engine_input", "ENGINE INPUT"),
+        ("intent", "INTENT"),
+        ("parameters", "PARAMETERS"),
+        ("action", "EXECUTION"),
+        ("execution", "STATUS"),
+        ("result", "RESULT"),
+    )
+    for field, label in mapping:
         value = getattr(trace, field, "?")
-        lines.append(f"  [{field.upper()}] {value!r}")
-    logger.debug("\n".join(lines))
+        lines.append(f"  [{label}] {value!r}")
+    logger.info("\n".join(lines))

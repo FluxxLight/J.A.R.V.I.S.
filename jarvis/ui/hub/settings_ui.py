@@ -244,6 +244,20 @@ class SettingsDialog(QDialog):
         self.wake_check.toggled.connect(self._on_wake_changed)
         form.addRow("", self.wake_check)
 
+        self.sens_slider = QSlider(Qt.Orientation.Horizontal)
+        self.sens_slider.setRange(50, 200)
+        self.sens_slider.setValue(int(float(
+            self._get("voice.vad_sensitivity", 1.0)) * 100))
+        self.sens_slider.setToolTip(
+            "Calibração automática a cada escuta. "
+            "Valores altos pegam fala mais baixa; baixos ignoram mais ruído.")
+        self.sens_slider.valueChanged.connect(self._on_sensitivity)
+        form.addRow("Sensibilidade:", self.sens_slider)
+        note = QLabel("O ruído ambiente é medido automaticamente ao ouvir.")
+        note.setWordWrap(True)
+        note.setObjectName("dim")
+        form.addRow("", note)
+
         self.recog_label = QLabel(self._app.recognizer_status())
         self.recog_label.setWordWrap(True)
         form.addRow("Reconhecedor:", self.recog_label)
@@ -277,6 +291,9 @@ class SettingsDialog(QDialog):
             self._app.mic.set_device(device)
         except Exception:
             log.exception("Falha ao trocar microfone (não fatal)")
+
+    def _on_sensitivity(self, value: int) -> None:
+        self._set("voice.vad_sensitivity", round(value / 100.0, 2))
 
     def _on_wake_changed(self, value: bool) -> None:
         self._set("voice.wake_word_required", bool(value))

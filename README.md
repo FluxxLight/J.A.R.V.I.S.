@@ -5,10 +5,10 @@ nenhum LLM, nenhuma API de IA, nenhum áudio ou comando sai do computador.
 A "inteligência" é determinística: regras, matching, aliases, intenções,
 parâmetros, contexto e memória local — *"IA sem ser IA"*.
 
-> Versão **2.1.0 — Finalização**. HUB profissional, intro cinematográfica,
-> 5 temas, configurações reais, voz local, Command Engine único, build `.exe`
-> e auditoria em 4 ciclos. O HUB consome os mesmos estados/serviços da
-> fundação 1.2 — nenhum sistema duplicado, nenhuma lógica de voz/comando paralela.
+> Versão **2.2.0 — Refinamento**. HUB profissional, VAD local (fim de fala,
+> silêncio, ruído), intro cinematográfica, 5 temas, configurações reais,
+> voz local, Command Engine único, build `.exe` e auditoria. O HUB consome
+> os mesmos estados/serviços da fundação 1.2 — nenhum sistema duplicado.
 
 A versão do produto vive em um único lugar: `jarvis.__version__`
 (CLI `--version`, HUB, configurações, diagnóstico e `BUILD_INFO.txt`).
@@ -186,6 +186,10 @@ No HUB: botão **Comandos** → Nativos (somente leitura) + Personalizados
 
 - **Reconhecimento:** Vosk offline (`jarvis/voice/recognizer.py`).
   Modelo ausente/biblioteca ausente → motivo claro, modo texto preservado.
+- **Captura / VAD:** energia RMS local (`jarvis/voice/vad.py`). Calibra o
+  ruído ambiente a cada escuta, diferencia silêncio/ruído/fala/clipping,
+  encerra após ~480 ms de silêncio e **não** corta no primeiro `AcceptWaveform`
+  do Vosk. Timeout configurável (`voice.listen_timeout`). Sem webrtc/cloud.
 - **Wake word:** `jarvis`, `J.A.R.V.I.S.`, com/sem pontuação, início ou meio
   da frase — o comando restante **nunca** é descartado
   (`jarvis/voice/wakeword.py`). Exigibilidade via `voice.wake_word_required`.
@@ -311,7 +315,17 @@ permanente para PRs futuros.
 
 ---
 
-## 12. Filosofia e proibições
+## 12. Como baixar / distribuir
+
+Leia **`DOWNLOAD_JARVIS.txt`** (instruções em linguagem simples).
+
+Pacote para copiar: `JARVIS_RELEASE.zip` (raiz do repositório).
+
+O executável Windows **`dist\JARVIS\J.A.R.V.I.S.exe`** só é gerado em um
+PC Windows (`build.bat`). Este repositório **não** contém um link de
+download inventado e **não** inclui um `.exe` pré-compilado.
+
+## 13. Filosofia e proibições
 
 - Sem OpenAI/LLM/APIs de IA, sem STT/TTS online, sem nuvem obrigatória.
 - Entrada do usuário **nunca** é executada como shell: só ações registradas.

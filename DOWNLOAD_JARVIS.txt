@@ -1,0 +1,131 @@
+J.A.R.V.I.S. — COMO BAIXAR E USAR
+=================================
+Versão 2.2.0  |  100% local  |  "IA sem ser IA"  |  sem internet
+
+NÃO existe um link mágico de download. O arquivo que você precisa
+está NESTA pasta do projeto (ou no ZIP gerado junto).
+
+
+1. ONDE ESTÁ O PROGRAMA
+-----------------------
+  • Pacote para copiar/levar:
+      JARVIS_RELEASE.zip          (raiz do projeto)
+
+  • Conteúdo do ZIP / pasta release/:
+      README.txt
+      DOWNLOAD_JARVIS.txt         (este arquivo)
+      run.bat                     (Windows — inicia o HUB)
+      run.sh                      (Linux/mac — desenvolvimento)
+      build.bat                   (Windows — gera o .EXE)
+      build.py
+      main.py
+      jarvis/                     (código)
+      jarvis.spec
+      requirements*.txt
+      models/LEIA-ME.txt          (onde colocar o modelo de voz)
+
+  • Executável Windows (só depois de rodar build.bat NO WINDOWS):
+      dist\JARVIS\J.A.R.V.I.S.exe
+
+
+2. QUAL ARQUIVO BAIXAR / COPIAR
+-------------------------------
+  Se alguém te enviou o projeto:
+      baixe/copie  JARVIS_RELEASE.zip
+
+  Se você já está nesta pasta:
+      não precisa baixar nada — use run.bat (Python) ou, no Windows,
+      gere o EXE com build.bat.
+
+
+3. ZIP OU EXE?
+--------------
+  ZIP  = código + scripts. Precisa de Python 3.10+ para rodar.
+  EXE  = gerado no Windows por build.bat. Não precisa de Python
+         no computador de destino. Este ambiente Linux NÃO gera o EXE.
+
+
+4. COMO EXTRAIR O ZIP
+---------------------
+  Windows: clique com o botão direito → Extrair Tudo…
+           ou:  tar -xf JARVIS_RELEASE.zip
+  Mantenha TODOS os arquivos juntos na mesma pasta extraída.
+
+
+5. COMO INICIAR (sem EXE — com Python)
+--------------------------------------
+  1. Instale Python 3.10+ (https://www.python.org/downloads/)
+     marque "Add python.exe to PATH".
+  2. Abra o Prompt na pasta extraída.
+  3. pip install -r requirements.txt -r requirements-ui.txt
+     (opcional, para voz): pip install -r requirements-voice.txt
+  4. run.bat
+     ou:  python main.py --hub
+
+
+6. COMO GERAR E INICIAR O EXE (Windows)
+---------------------------------------
+  1. pip install -r requirements.txt -r requirements-ui.txt -r requirements-build.txt
+     (recomendado) pip install -r requirements-voice.txt
+  2. build.bat
+  3. Abra:  dist\JARVIS\J.A.R.V.I.S.exe
+  4. NÃO separe o .exe da pasta _internal. Copie a pasta JARVIS inteira.
+
+
+7. ARQUIVOS QUE DEVEM PERMANECER JUNTOS
+---------------------------------------
+  EXE:     dist\JARVIS\J.A.R.V.I.S.exe  +  dist\JARVIS\_internal\  +  models\
+  Python:  main.py  +  pasta jarvis\  +  requirements*.txt
+
+
+8. COMO CRIAR UM ATALHO (Windows)
+---------------------------------
+  1. Vá até dist\JARVIS\J.A.R.V.I.S.exe
+  2. Botão direito → Enviar para → Área de trabalho (criar atalho)
+  3. (Opcional) botão direito no atalho → Propriedades → Iniciar em:
+     a pasta dist\JARVIS
+
+
+9. INICIAR COM O WINDOWS
+------------------------
+  1. Abra o J.A.R.V.I.S.
+  2. CONFIG → Inicialização
+  3. Marque "Inicializar J.A.R.V.I.S. com o Windows"
+  4. A opção grava no registro do SEU usuário (HKCU), sem admin.
+  5. Para desfazer: desmarque a mesma caixa.
+
+
+10. REQUISITOS MÍNIMOS
+----------------------
+  • Windows 10/11 64-bit (produto alvo)
+  • Python 3.10+  — só se for rodar pelo código
+  • Microfone — só se for usar voz
+  • Modelo Vosk pt-BR — só se for reconhecimento offline
+      extraia em:  %APPDATA%\JARVIS\models\vosk\
+      ou na pasta models\ ao lado do EXE
+  • Sem internet para o funcionamento principal
+  • Sem conta OpenAI / ChatGPT / qualquer API de IA
+
+
+11. PROBLEMAS COMUNS
+--------------------
+  HUB não abre .............. pip install -r requirements-ui.txt
+  "Reconhecimento indisponível"
+      instale voz + modelo Vosk (README.md, seção Voz)
+  Não fala .................. pip install -r requirements-voice.txt
+  Segunda janela não abre ... é instância única; a existente é focada
+  EXE não acha arquivos ..... copie a pasta dist\JARVIS inteira
+  PySide6 crash após minutos  use PySide6>=6.6,<6.12
+
+Dados locais (config, memória, logs):
+  Windows:  %APPDATA%\JARVIS\
+  Outros:   ~/.jarvis/
+
+
+COMO USAR (resumo)
+------------------
+  Digite um comando no HUB (ex.: "abra o navegador", "que horas são?")
+  ou clique em OUVIR / Ctrl+L e fale:
+      "J.A.R.V.I.S., abra o navegador."
+  Texto e voz passam pelo MESMO Command Engine.
+  F11 = tela cheia. CONFIG = temas, voz, microfone, startup.

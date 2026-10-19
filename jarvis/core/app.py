@@ -20,7 +20,8 @@ from jarvis.commands.custom import CustomCommandManager
 from jarvis.commands.native import register_all as register_native
 from jarvis.commands.registry import CommandRegistry
 from jarvis.context.context import ContextManager
-from jarvis.core.events import (APP_SHUTDOWN, COMMAND_EXECUTED, COMMAND_RECEIVED,
+from jarvis.core.events import (APP_SHUTDOWN, AUDIO_EVENT, AUDIO_LEVEL,
+                                COMMAND_EXECUTED, COMMAND_RECEIVED,
                                 SPEECH_FINISHED, SPEECH_STARTED, STATE_CHANGED,
                                 VOICE_TRANSCRIPT, EventBus)
 from jarvis.core.pipeline import process_command
@@ -89,6 +90,7 @@ class JarvisApp:
         self._exit_event = threading.Event()
         self._lock = threading.RLock()
         self._started = False
+        self._last_transcript = ("", 0.0)  # (texto, monotonic) anti-eco
 
     # -- ciclo de vida ------------------------------------------------------
     def start(self) -> None:
@@ -192,20 +194,51 @@ class JarvisApp:
         self.states.to(SystemState.LISTENING)
         seconds = float(timeout if timeout is not None
                         else self.settings.get("voice.listen_timeout", 8))
+        from jarvis.voice.vad import EnergyVAD
+        vad = EnergyVAD(
+            sample_rate=int(self.settings.get("voice.sample_rate", 16000)),
+            sensitivity=float(self.settings.get("voice.vad_sensitivity", 1.0)),
+            silence_ms=float(self.settings.get("voice.silence_ms", 480)),
+            min_speech_ms=float(self.settings.get("voice.min_speech_ms", 200)),
+            max_utterance_ms=seconds * 1000.0)
+
+        def _on_level(analysis) -> None:
+            self.events.emit(AUDIO_LEVEL, rms=analysis.rms,
+                             speech=analysis.is_speech, tag=analysis.tag)
+
+        def _on_event(tag: str, detail: str) -> None:
+            self.events.emit(AUDIO_EVENT, tag=tag, detail=detail)
+
         try:
-            transcript = self.recognizer.listen_once(self.mic, timeout=seconds)
+            transcript = self.recognizer.listen_once(
+                self.mic, timeout=seconds, on_level=_on_level,
+                on_event=_on_event, vad=vad)
+            _on_event("CAPTURE", getattr(transcript, "reason", "") or "")
         except Exception as exc:
             log.exception("Captura falhou")
             self.states.fail(str(exc))
             self.states.recover()
             return VoiceTrace(ignored=True, ignore_reason=str(exc),
                               result=f"Falha na captura: {exc}")
-        if not transcript.text.strip():
-            log.info("Nada capturado (silêncio).")
+        text = (transcript.text or "").strip()
+        if not text:
+            reason = getattr(transcript, "reason", "") or "silêncio"
+            log.info("[SPEECH END] nada transcrito (%s).", reason)
             self.states.to(SystemState.IDLE)
-            return VoiceTrace(raw="", ignored=True, ignore_reason="silêncio",
-                              result="Não ouvi nada.")
-        return self.handle_voice_transcript(transcript.text)
+            message = ("Não ouvi nada." if reason in ("silence", "timeout", "")
+                       else f"Captura encerrada ({reason}).")
+            return VoiceTrace(raw="", ignored=True, ignore_reason=reason,
+                              result=message)
+        import time as _time
+        last_text, last_t = self._last_transcript
+        now = _time.monotonic()
+        if text == last_text and (now - last_t) < 1.2:
+            log.info("[VOICE] áudio duplicado ignorado: %r", text)
+            self.states.to(SystemState.IDLE)
+            return VoiceTrace(raw=text, ignored=True, ignore_reason="duplicado",
+                              result="Já processei isso agora.")
+        self._last_transcript = (text, now)
+        return self.handle_voice_transcript(text)
 
     # -- fala ----------------------------------------------------------------
     def speak(self, text: str, interrupt: bool = False) -> None:

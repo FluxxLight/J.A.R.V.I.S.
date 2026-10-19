@@ -111,8 +111,11 @@ class MicrophoneManager:
         log.info("Dispositivo de captura: %s", index)
 
     # -- stream ------------------------------------------------------------
-    def open_stream(self, block_size: int = 4000):
-        """Abre stream de captura. Retorna objeto com .read()/.close() ou None."""
+    def open_stream(self, block_size: int = 1600):
+        """Abre stream de captura. Retorna objeto com .read()/.close() ou None.
+
+        block_size padrão 1600 amostras @ 16 kHz = 100 ms (bom para VAD).
+        """
         sd = _import_sounddevice()
         if sd is None:
             self._set(MicStatus.UNAVAILABLE, "sounddevice ausente.")
