@@ -1,0 +1,10 @@
+# J.A.R.V.I.S. — dependências OPCIONAIS de voz local (Windows)
+# Tudo aqui é 100% offline após instalado. Sem elas, o app funciona
+# em modo texto + voz simulada, com avisos claros (sem crash).
+#
+# Reconhecimento offline:
+vosk>=0.3.45
+# Microfone:
+sounddevice>=0.4.6
+# TTS local (usa SAPI5/Vozes do Windows):
+pyttsx3>=2.90

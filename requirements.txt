@@ -1,0 +1,4 @@
+# J.A.R.V.I.S. — dependências do NÚCLEO
+# O núcleo (engine, comandos, voz simulada, testes) usa SOMENTE a stdlib.
+# Este arquivo lista apenas ferramentas de desenvolvimento/teste.
+pytest>=7.0

@@ -1,0 +1,2 @@
+# J.A.R.V.I.S. — build do .EXE (Windows, etapa futura de empacotamento)
+pyinstaller>=6.0
