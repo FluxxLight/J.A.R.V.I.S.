@@ -1,6 +1,7 @@
 """AUDITORIA CICLO 2 — UI/Qt sob estresse (offscreen)."""
-import sys, time
+import shutil, sys, time
 sys.path.insert(0, "/home/user/J.A.R.V.I.S.")
+shutil.rmtree("/tmp/audit2", ignore_errors=True)
 from PySide6.QtWidgets import QApplication
 from jarvis.core.app import JarvisApp
 from jarvis.ui.hub.audio import SfxPlayer
@@ -161,7 +162,7 @@ check("autostart x20", bad == 0)
 
 # 10) diagnostics x10
 from jarvis.ui.hub.diagnostics import run_diagnostics
-bad = sum(1 for _ in range(10) if len(run_diagnostics(app)) != 9)
+bad = sum(1 for _ in range(10) if len(run_diagnostics(app)) != 10)
 check("diagnostics x10", bad == 0)
 
 # 11) resoluções + fullscreen grabs

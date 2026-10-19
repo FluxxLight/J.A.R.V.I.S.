@@ -73,14 +73,12 @@ class SettingsDialog(QDialog):
 
         self.anim_check = QCheckBox("Animações do núcleo e HUD")
         self.anim_check.setChecked(bool(self._get("ui.animations", True)))
-        self.anim_check.toggled.connect(
-            lambda v: self._set("ui.animations", bool(v)))
+        self.anim_check.toggled.connect(self._on_anim_changed)
         form.addRow("", self.anim_check)
 
         self.intro_check = QCheckBox("Mostrar animação de inicialização")
         self.intro_check.setChecked(bool(self._get("intro.enabled", True)))
-        self.intro_check.toggled.connect(
-            lambda v: self._set("intro.enabled", bool(v)))
+        self.intro_check.toggled.connect(self._on_intro_changed)
         form.addRow("", self.intro_check)
 
         self.intro_sound_check = QCheckBox("Efeitos sonoros da intro")
@@ -115,7 +113,36 @@ class SettingsDialog(QDialog):
                 log.exception("Falha ao aplicar tema (não fatal)")
 
     def _on_fps_changed(self, index: int) -> None:
-        self._set("ui.nucleus_fps", int(self.fps_combo.itemData(index)))
+        fps = int(self.fps_combo.itemData(index))
+        self._set("ui.nucleus_fps", fps)
+        parent = self.parent()
+        if parent is not None and hasattr(parent, "nucleus"):
+            try:
+                parent.nucleus.set_fps(fps)
+            except Exception:
+                log.exception("Falha ao aplicar FPS (não fatal)")
+
+    def _on_anim_changed(self, value: bool) -> None:
+        self._set("ui.animations", bool(value))
+        parent = self.parent()
+        if parent is not None and hasattr(parent, "nucleus"):
+            try:
+                parent.nucleus.set_animated(bool(value))
+            except Exception:
+                log.exception("Falha ao aplicar animações (não fatal)")
+
+    def _on_intro_changed(self, value: bool) -> None:
+        """Uma única fonte de verdade: os dois checkboxes (Aparência + Inicialização)."""
+        enabled = bool(value)
+        self._set("intro.enabled", enabled)
+        for box in (getattr(self, "intro_check", None),
+                    getattr(self, "intro_check_startup", None)):
+            if box is None:
+                continue
+            if box.isChecked() != enabled:
+                box.blockSignals(True)
+                box.setChecked(enabled)
+                box.blockSignals(False)
 
     # -- Voz (TTS) ---------------------------------------------------------------
     def _build_voice(self) -> None:
@@ -307,12 +334,10 @@ class SettingsDialog(QDialog):
             lambda v: self._set("startup.start_minimized", bool(v)))
         form.addRow("", self.min_check)
 
-        intro2 = QCheckBox("Mostrar animação de inicialização")
-        intro2.setChecked(bool(self._get("intro.enabled", True)))
-        intro2.toggled.connect(lambda v: (
-            self._set("intro.enabled", bool(v)),
-            self.intro_check.setChecked(bool(v))))
-        form.addRow("", intro2)
+        self.intro_check_startup = QCheckBox("Mostrar animação de inicialização")
+        self.intro_check_startup.setChecked(bool(self._get("intro.enabled", True)))
+        self.intro_check_startup.toggled.connect(self._on_intro_changed)
+        form.addRow("", self.intro_check_startup)
         self.tabs.addTab(page, "Inicialização")
 
     def _on_autostart(self, value: bool) -> None:

@@ -1,7 +1,8 @@
 """AUDITORIA CICLO 1 — estresse e casos extremos (Core, sem Qt)."""
-import os, random, resource, sys, threading, time
+import os, random, resource, shutil, sys, threading, time
 sys.path.insert(0, "/home/user/J.A.R.V.I.S.")
 from jarvis.core.app import JarvisApp
+shutil.rmtree("/tmp/audit1", ignore_errors=True)
 
 FAIL = []
 def check(name, cond, extra=""):

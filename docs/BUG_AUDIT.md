@@ -1,18 +1,17 @@
-# BUG AUDIT — J.A.R.V.I.S. 2.0.0 (PROMPT 3.4)
+# BUG AUDIT — J.A.R.V.I.S. 2.1.0 (PROMPT 4)
 
-> Caça sistemática a bugs **antes** do build final. Três ciclos, focos
-> diferentes, 74 verificações executáveis. Só há "PRONTO" porque cada ciclo
-> terminou em **0 falhas reproduzíveis** — e o único bug real encontrado foi
-> corrigido, testado e eternizado como teste de regressão.
+> Caça sistemática a bugs **antes** de declarar o produto pronto. Quatro
+> ciclos, focos diferentes, scripts em `docs/audit/`. Só há "PRONTO" porque
+> cada ciclo terminou em **0 falhas reproduzíveis** — e cada bug real foi
+> corrigido, testado e eternizado como regressão.
 
-Scripts reproduzíveis em `docs/audit/` (`cycle1_core_stress.py`,
-`cycle2_hub_qt.py`, `cycle3_races_edges.py`). Foram escritos como sondas de
-auditoria (não entram no `pytest`): para rodar, use o mesmo ambiente dos
+Scripts: `cycle1_core_stress.py`, `cycle2_hub_qt.py`, `cycle3_races_edges.py`,
+`cycle4_final.py`. Não entram no `pytest`: rode com o mesmo ambiente dos
 testes Qt — `QT_QPA_PLATFORM=offscreen`, `PYTHONPATH=<repo>` e, no sandbox
-Linux sem libGL do sistema, `LD_LIBRARY_PATH=<stubs-qt>`.
+Linux sem libGL, `LD_LIBRARY_PATH=<stubs-qt>`.
 
-**Estado final: 74/74 PASS. Nenhum crash reproduzível. Nenhum placeholder.
-Nenhum bug crítico/alto sem tratamento.**
+**Estado final: 96/96 PASS (34+18+22+22). Nenhum crash reproduzível.
+Nenhum placeholder. Nenhum bug crítico/alto sem tratamento.**
 
 ---
 
@@ -62,7 +61,7 @@ núcleo animado, ciclo de vida, resoluções, storm de eventos.
 | 11 | 5 ciclos criar→mostrar→fechar→destruir HUB (sem "Signal source has been deleted") | ✅ |
 | 12–13 | Diálogo de comando: 10 válidos aceitos, 10 inválidos bloqueados | ✅ |
 | 14 | Autostart liga/desliga × 20 (idempotente; no-op honesto fora do Windows) | ✅ |
-| 15 | Diagnóstico × 10 (saída estável) | ✅ |
+| 15 | Diagnóstico × 10 (saída estável, 10 itens incluindo Versão) | ✅ |
 | 16 | Render em 4 resoluções (800×600 → 1920×1080, inclui 1280×720 e 1366×768) | ✅ |
 | 17 | HUB abre com `settings.json` corrompido (cai para padrão, não crasha) | ✅ |
 | 18 | Storm de 500 eventos PROCESSANDO (coalescência, sem travar UI) | ✅ |
@@ -93,7 +92,7 @@ absurdas, backends ausentes, entry points, invariantes de ciclo de vida.
 | 10 | Contexto expira após TTL (pronome sem contexto não resolve) | ✅ |
 | 11 | Comando nativo removido → UNKNOWN honesto; ação ausente → erro honesto ("ação ausente") | ✅ |
 | 12 | `data_dir` com espaço e unicode (`/tmp/audit dir çãõ`) | ✅ |
-| 13–16 | Entry points: `--version` (exit 0, "2.0.0"), `--exec` ok (0), `--exec` desconhecido (1), `--test-voice` (0 + OPEN_BROWSER) | ✅ |
+| 13–16 | Entry points: `--version` (exit 0, `jarvis.__version__`), `--exec` ok (0), `--exec` desconhecido (1), `--test-voice` (0 + OPEN_BROWSER) | ✅ |
 | 17 | `SpeechQueue`: shutdown duplo idempotente; `speak` pós-shutdown = `False` | ✅ |
 | 18 | Microfone/reconhecedor indisponíveis (sem sounddevice/Vosk): `None`/transcrição vazia, sem crash | ✅ |
 | 19 | `show_and_focus` × 10 + troca de QSS × 20 | ✅ |
@@ -108,6 +107,95 @@ honestidade, `"Este comando está com problema interno (ação ausente)."`
 
 ---
 
+## Ciclo 4 — finalização (PROMPT 4) (22/22 ✅)
+
+Foco: versão única, auditoria de rede, segurança (texto ≠ shell), layout
+DPI/resolução, persistência, CLI real, SFX/frozen paths, autostart.
+
+Script: `docs/audit/cycle4_final.py`.
+
+| # | Verificação | Resultado |
+|---|-------------|-----------|
+| 1–2 | Versão semver, declarada uma vez em `jarvis.__version__` | 2.1.0 ✅ |
+| 3–5 | `--version`, `python -m jarvis --version`, exit 1 em comando desconhecido | ✅ |
+| 6 | AST: zero imports de cliente HTTP/LLM/telemetria | ✅ |
+| 7–9 | Texto hostil = UNKNOWN; wake word preserva `rm -rf /` e não executa | ✅ |
+| 10 | Pares texto==voz do prompt 4 (navegador, hora, data, bloco de notas) | ✅ |
+| 11–12 | Tema e `intro.enabled` persistem após restart | ✅ |
+| 13–14 | Layout 5 resoluções (800×600→2560×1440); mínimo ≤ 800×560 | ✅ |
+| 15–16 | Checkboxes de intro sincronizados nos dois sentidos | ✅ |
+| 17 | Animações aplicam a quente no núcleo | ✅ |
+| 18–19 | CLI `--fullscreen` / `--minimized` existem | ✅ |
+| 20 | 6 SFX locais presentes em disco | ✅ |
+| 21–22 | Autostart aponta para `main.py --hub` existente | ✅ |
+
+### Bugs encontrados neste ciclo
+
+**BUG-004**
+- **BUG:** HUB com `setMinimumSize(1100, 680)` e colunas fixas 300+320 px.
+- **CAUSA:** layout pensado só para 1440×860 @ 100% DPI.
+- **SEVERIDADE:** ALTO (1280×720 @ 125% e 1366×768 @ 150% ficam abaixo do mínimo).
+- **REPRODUÇÃO:** `hub.setMinimumSize` + `resize(800, 600)` — Qt recusava encolher.
+- **CORREÇÃO:** mínimo 800×560; `_adapt_layout` reduz colunas por faixa de largura.
+- **REGRESSÃO:** `tests/test_hub_qt.py::test_hub_resolutions` (inclui 800×600 e 2560×1440).
+- **STATUS:** CORRIGIDO.
+
+**BUG-005**
+- **BUG:** checkbox "Mostrar intro" em Aparência não sincronizava com o da aba Inicialização.
+- **CAUSA:** só o da Inicialização empurrava o outro; o inverso só persistia.
+- **SEVERIDADE:** BAIXO.
+- **REPRODUÇÃO:** abrir Config → desmarcar em Aparência → aba Inicialização ainda marcada.
+- **CORREÇÃO:** `_on_intro_changed` é a única fonte, atualiza os dois sem loop de sinais.
+- **REGRESSÃO:** `tests/test_hub_qt.py::test_settings_intro_checkboxes_stay_in_sync`.
+- **STATUS:** CORRIGIDO.
+
+**BUG-006**
+- **BUG:** `python -m jarvis --exec "desconhecido"` devolvia exit 0.
+- **CAUSA:** `jarvis/__main__.py` chamava `main()` sem `sys.exit`.
+- **SEVERIDADE:** MÉDIO (scripts/CI não detectavam falha).
+- **REPRODUÇÃO:** `python -m jarvis --cli --exec "xyzzy"`; `echo %ERRORLEVEL%`.
+- **CORREÇÃO:** `sys.exit(main())`.
+- **REGRESSÃO:** `tests/test_final.py::test_module_entry_propagates_exit_code`.
+- **STATUS:** CORRIGIDO.
+
+**BUG-007**
+- **BUG:** README documentava `--fullscreen`/`--minimized` e `JARVIS.exe` / `BUILD_INFO.txt` que não existiam; bloco de instalação com `\n` literal.
+- **CAUSA:** edição falha + spec (`J.A.R.V.I.S.exe`) divergente do texto.
+- **SEVERIDADE:** MÉDIO (documentação mentirosa).
+- **REPRODUÇÃO:** `python main.py --help` não listava as flags; `build.py` não gravava `BUILD_INFO.txt`.
+- **CORREÇÃO:** flags reais (não persistem), `BUILD_INFO.txt` gerado, README alinhado ao spec.
+- **REGRESSÃO:** `tests/test_final.py::test_cli_exposes_fullscreen_and_minimized`.
+- **STATUS:** CORRIGIDO.
+
+**BUG-008**
+- **BUG:** `"mostre a hora"` / `"mostre a data"` (exemplos do prompt) não casavam GET_TIME/GET_DATE.
+- **CAUSA:** aliases nativos cobriam "que horas são" / "me diga as horas", não "mostre".
+- **SEVERIDADE:** MÉDIO (frase natural do usuário falhava).
+- **REPRODUÇÃO:** `python main.py --exec "mostre a hora"` → UNKNOWN.
+- **CORREÇÃO:** aliases em `jarvis/commands/native.py`.
+- **REGRESSÃO:** `tests/test_engine.py` + `tests/test_final.py::test_prompt_examples_text_and_voice`.
+- **STATUS:** CORRIGIDO.
+
+**BUG-010**
+- **BUG:** `READY → SPEAKING` rejeitado; o HUB não mostrava estado de fala.
+- **CAUSA:** TTS é assíncrono — `handle_text` já passou por READY (e às vezes ainda não chegou em IDLE) quando `_on_speech_start` dispara.
+- **SEVERIDADE:** MÉDIO (log de transição inválida + estado visual errado).
+- **REPRODUÇÃO:** `python main.py --exec "mostre a hora"` com TTS rápido; log `READY -> SPEAKING`.
+- **CORREÇÃO:** `READY` passa a permitir `SPEAKING` (simétrico a `IDLE`).
+- **REGRESSÃO:** `tests/test_regression.py::test_audit_regression_ready_may_yield_to_speaking`.
+- **STATUS:** CORRIGIDO.
+
+**BUG-009**
+- **BUG:** animações/FPS das configurações só aplicavam ao fechar o diálogo.
+- **CAUSA:** persistiam em `settings.json` mas o núcleo só era atualizado em `_apply_runtime_settings` no `accept`.
+- **SEVERIDADE:** BAIXO.
+- **REPRODUÇÃO:** desmarcar "Animações" e observar o núcleo ainda pulsar até Fechar.
+- **CORREÇÃO:** `_on_anim_changed` / `_on_fps_changed` chamam o núcleo imediatamente.
+- **REGRESSÃO:** ciclo 4 (`animações aplicam a quente`).
+- **STATUS:** CORRIGIDO.
+
+---
+
 ## Bugs conhecidos que NÃO são bugs do produto
 
 1. **PySide6 6.12.0** — regressão de refcount/GC upstream ("none_dealloc",
@@ -119,6 +207,9 @@ honestidade, `"Este comando está com problema interno (ação ausente)."`
    `offscreen` + raster com stubs de versão; voz real, autostart de
    registro e `.exe` só são exercitáveis no Windows. O `build.py` detecta
    isso e roda em "modo verificação" fora do Windows.
+3. **EXE windowed (`console=False`)** — `--version` no EXE Windows pode não
+   imprimir stdout; o critério do smoke test é o código de saída. Esperado
+   para um app desktop sem console.
 
 ---
 
@@ -127,11 +218,13 @@ honestidade, `"Este comando está com problema interno (ação ausente)."`
 1. **Todo bug encontrado por auditoria, review ou usuário vira teste.**
    Sem exceção: corrigir sem teste de regressão em `tests/` (unitário) ou
    `docs/audit/` (stress/ciclo de vida) não conta como corrigido.
-2. **Suíte sempre verde antes de commit:** `pytest` (hoje 178 testes) com
-   **0 falhas e 0 warnings**; `python -m compileall` limpo.
+2. **Suíte sempre verde antes de commit:** `pytest` com **0 falhas e 0
+   warnings**; `python -m compileall` limpo.
 3. **Nenhum upgrade de PySide6 além de 6.11.x** sem rodar o stress
    (`setText` × 3000 + 60 pinturas do núcleo) em `docs/audit/cycle2_hub_qt.py`.
 4. **Toda mudança no `StateManager`** roda `test_regression.py` +
    ciclo 1 (a máquina de estados é o coração do feedback real).
 5. **Toda mudança visual no HUB** exige re-shot offscreen dos 5 temas +
-   `intro` antes do commit (receita na seção "HUB / Interface" do README).
+   `intro` antes do commit (receita na seção "HUB" do README).
+6. **A versão muda em um único lugar:** `jarvis/__init__.py` `__version__`.
+   Qualquer string solta `"X.Y.Z"` em testes/auditoria deve importar essa constante.

@@ -5,11 +5,13 @@ nenhum LLM, nenhuma API de IA, nenhum áudio ou comando sai do computador.
 A "inteligência" é determinística: regras, matching, aliases, intenções,
 parâmetros, contexto e memória local — *"IA sem ser IA"*.
 
-> Etapa atual: **2.0.0 — HUB Profissional** (command center com núcleo
-> animado, HUD de informações, intro cinematográfica, 5 temas, central de
-> configurações real, build `.exe` e auditoria de bugs em 3 ciclos).
-> O HUB consome os mesmos estados/serviços da fundação 1.2 — nenhum sistema
-> duplicado, nenhuma lógica de voz/comando paralela.
+> Versão **2.1.0 — Finalização**. HUB profissional, intro cinematográfica,
+> 5 temas, configurações reais, voz local, Command Engine único, build `.exe`
+> e auditoria em 4 ciclos. O HUB consome os mesmos estados/serviços da
+> fundação 1.2 — nenhum sistema duplicado, nenhuma lógica de voz/comando paralela.
+
+A versão do produto vive em um único lugar: `jarvis.__version__`
+(CLI `--version`, HUB, configurações, diagnóstico e `BUILD_INFO.txt`).
 
 ---
 
@@ -42,12 +44,15 @@ não existe interpretação paralela.
 | `system/` | Launcher (apps/URLs/pastas) e operações Windows via `ctypes` |
 | `logger/` | Logging em arquivo rotativo + console, com trilha de voz |
 | `utils/` | Texto e plataforma (sem dependências) |
-| `ui/` | CLI/REPL, GUI mínima e HUB profissional (`ui/hub/`: temas, núcleo animado, intro, SFX, settings, diagnósticos, single-instance, autostart) |
+| `ui/` | CLI/REPL, GUI mínima (fallback) e HUB (`ui/hub/`: temas, núcleo, intro, SFX, settings, diagnósticos, single-instance, autostart) |
 
-### Estados reais (`STARTING → READY → IDLE → LISTENING → PROCESSING → EXECUTING → SPEAKING → READY`, com `ERROR → READY`)
+### Estados reais
 
-Emitidos via `EventBus` para a UI futura; transições inválidas são rejeitadas
-e registradas — o sistema nunca fica preso em `LISTENING`/`PROCESSING`/`EXECUTING`.
+`STARTING → READY → IDLE → LISTENING → PROCESSING → EXECUTING → SPEAKING → READY`,
+com `ERROR → READY` e `SHUTDOWN`.
+
+Emitidos via `EventBus` para o HUB; transições inválidas são rejeitadas e
+registradas — o sistema nunca fica preso em `LISTENING`/`PROCESSING`/`EXECUTING`.
 
 ---
 
@@ -64,7 +69,16 @@ pip install -r requirements-voice.txt
 
 REM HUB / interface gráfica:
 pip install -r requirements-ui.txt
-```\n\n**Dependências (produção, mínimas):** núcleo = stdlib; voz = Vosk +\nsounddevice + pyttsx3; UI = PySide6 (`>=6.6,<6.12` — a série 6.12 tem\nregressão de refcount/GC upstream que crasha após centenas de operações Qt;\nvalidado em 6.7.2 com stress. Ver `docs/BUG_AUDIT.md`).
+```
+
+**Dependências (produção, mínimas):** núcleo = stdlib; voz = Vosk +
+sounddevice + pyttsx3; UI = PySide6 (`>=6.6,<6.12` — a série 6.12 tem
+regressão de refcount/GC upstream que crasha após centenas de operações Qt;
+validado em 6.7.2 com stress. Ver `docs/BUG_AUDIT.md`).
+
+Não há `requests`, `httpx`, OpenAI, nem qualquer cliente HTTP no pacote
+`jarvis/`. A única "rede" possível é o usuário pedir para abrir uma URL no
+navegador (`webbrowser.open`) — o J.A.R.V.I.S. em si não faz requisições.
 
 ### Modelo de voz (reconhecimento offline)
 
@@ -80,17 +94,23 @@ pip install -r requirements-ui.txt
 ## 3. Como executar
 
 ```bat
-run.bat                  REM abre o HUB (com Qt+display) ou cai p/ console
-run.bat --cli            REM força console interativo
-run.bat --gui            REM janela mínima legada
+run.bat                     REM abre o HUB (com Qt+display) ou cai p/ console
+run.bat --cli               REM força console interativo
+run.bat --gui               REM janela mínima tkinter (fallback sem Qt)
+run.bat --hub               REM força o HUB
+run.bat --no-intro          REM HUB sem intro
+run.bat --fullscreen        REM HUB em tela cheia (não persiste)
+run.bat --minimized         REM HUB minimizado (não persiste)
 
 python main.py --exec "que horas são?"
 python main.py --test-voice "J.A.R.V.I.S., abra o navegador."
 python main.py --list-mics
 python main.py --list-voices
-python main.py --dry-run   REM simula ações sem executar (seguro)
-python main.py --fullscreen --minimized  REM flags do HUB (combináveis)
+python main.py --dry-run    REM simula ações sem executar (seguro)
 ```
+
+`--fullscreen` e `--minimized` valem só para a sessão (não gravados em
+`settings.json`). A persistência fica nas configurações do HUB.
 
 Comandos do console: `:ouvir` (captura 1 fala), `:voz <texto>` (simula
 transcrição), `:mics`, `:vozes`, `:estado`, `:ajuda`, `:sair`.
@@ -103,19 +123,27 @@ transcrição), `:mics`, `:vozes`, `:estado`, `:ajuda`, `:sair`.
 python -m pytest tests/ -q
 ```
 
-178 testes, 0 warnings: a base 1.2 (normalização, matching, wake word —
-inclui o caso crítico "comando após a wake word é preservado" — engine,
-aliases, contexto, memória, confirmações, customs, storage, settings,
-estados, pipeline de voz simulada, erros de voz, regressão texto==voz) +
-HUB (temas, timeline da intro, SFX, autostart, single-instance,
-diagnósticos, integração Qt offscreen) + fechar-aplicativo end-to-end +
-regressão da auditoria (`SPEAKING` cedendo a trabalho novo).
+A suíte cobre a base 1.2 (normalização, matching, wake word — inclui o caso
+crítico "comando após a wake word é preservado" — engine, aliases, contexto,
+memória, confirmações, customs, storage, settings, estados, pipeline de voz
+simulada, erros de voz, regressão texto==voz) + HUB (temas, timeline da intro,
+SFX, autostart, single-instance, diagnósticos, integração Qt offscreen) +
+fechar-aplicativo end-to-end + regressão da auditoria (`SPEAKING` cedendo a
+trabalho novo) + finalização 2.1.0 (versão única, rede, segurança, CLI, layout).
 
 Testes Qt rodam em `offscreen` (sem display): no Linux, exporte
 `QT_QPA_PLATFORM=offscreen` (e `LD_LIBRARY_PATH` p/ stubs Qt se o sistema
 não tiver libGL — detalhe de sandbox, nunca distribuído).
+
 Auditorias de estresse/ciclo de vida: `docs/audit/` + `docs/BUG_AUDIT.md`
-(74 verificações, 3 ciclos, 100% verdes).
+(4 ciclos, verificações executáveis).
+
+```bat
+python docs/audit/cycle1_core_stress.py
+python docs/audit/cycle2_hub_qt.py
+python docs/audit/cycle3_races_edges.py
+python docs/audit/cycle4_final.py
+```
 
 ---
 
@@ -123,10 +151,15 @@ Auditorias de estresse/ciclo de vida: `docs/audit/` + `docs/BUG_AUDIT.md`
 
 Abrir navegador, calculadora, bloco de notas, explorador, configurações,
 Discord, sites/URLs (`"abra o youtube"`, `"abra o site https://..."`),
-horas, data, minimizar/maximizar/tela-cheia, bloquear, **fechar aplicativo**
+horas (`"que horas são?"`, `"mostre a hora"`), data (`"mostre a data"`),
+minimizar/maximizar/tela-cheia, bloquear, **fechar aplicativo**
 (`"feche o discord"`, `"feche ele"` com contexto), **reiniciar**,
 **desligar** e **fechar o J.A.R.V.I.S.** (os três últimos exigem "sim"/"não"),
 além de `ajuda`.
+
+Entrada do usuário **nunca** é executada como shell: só ações registradas.
+Tentativas do tipo `rm -rf /`, `powershell -enc …` ou `curl http://…`
+retornam `UNKNOWN` e não executam nada.
 
 ### Comandos personalizados (pela UI do HUB ou via código)
 
@@ -191,6 +224,10 @@ Override (testes/dev): `python main.py --data-dir ./jarvis_data`.
 | `settings.json` corrompido | edição manual/queda | automático: restaura padrão + backup em `backup\` |
 | HUB não abre, cai no console | sem PySide6/display | `pip install -r requirements-ui.txt` |
 | Crash Qt após minutos de uso | PySide6 6.12 (regressão upstream) | pinar `PySide6>=6.6,<6.12` (ver `docs/BUG_AUDIT.md`) |
+| Elementos apertados em tela pequena | DPI alto + resolução baixa | o HUB reduz colunas abaixo de 1280 px; mínimo 800×560 |
+| Segunda janela não abre | single instance | a instância existente é focada — é o comportamento correto |
+| Autostart não liga no Windows | EXE movido após ativar | desative e ative de novo nas configurações (grava o caminho atual) |
+| Build no Linux não gera EXE | PyInstaller Windows-only neste projeto | `build.py` roda em modo verificação; use `build.bat` no Windows |
 
 Logs detalhados sempre em `<dados>\logs\jarvis.log`.
 
@@ -200,7 +237,7 @@ Logs detalhados sempre em `<dados>\logs\jarvis.log`.
 
 - **Núcleo animado** no centro: cada um dos 8 estados tem comportamento
   visual próprio (pulso, órbitas, partículas, véu de erro), sempre refletindo
-  o `StateManager` real — nunca animação decorativa desconectada.
+  o `StateMachine` real — nunca animação decorativa desconectada.
 - **Feedback real de comando:** a trilha `COMANDO → PROCESSANDO →
   EXECUTANDO → RESULTADO` espelha o `EngineResult` verdadeiro
   (intenção, confiança, método, duração, mensagem).
@@ -214,17 +251,21 @@ Logs detalhados sempre em `<dados>\logs\jarvis.log`.
   brilhos, partículas, textos, bordas, botões, indicadores, estados e intro.
 - **Central de configurações** (6 abas: aparência, voz, microfone,
   comandos, inicialização, sistema): todo controle aplica + salva +
-  restaura; nada é falso.
-- **F11** alterna fullscreen; responsivo de 800×600 a 1080p+; DPI do
-  Windows respeitado.
+  restaura; nada é falso. Versão exibida vem de `jarvis.__version__`.
+- **F11** alterna fullscreen; layout responsivo 800×560 → 2560×1440;
+  DPI do Windows com `PassThrough` (125%/150%/175%/200% sem arredondar).
 - **Instância única:** segunda execução foca a janela existente.
 - **Autostart real:** liga/desliga via `HKCU\...\Run` (Windows), reversível.
+  No EXE empacotado registra o próprio `.exe`; em desenvolvimento,
+  `python main.py --hub`.
 - **Voz↔UI integrada:** falar/ouvir atualiza núcleo, badge e HUD via
   `EventBus`; workers fora da thread da UI — a interface nunca congela.
 
 Re-shot visual (receita da auditoria): rode o HUB em offscreen, chame
 `hub.apply_theme(tid, persist=False)` por tema, capture `grab()` do núcleo
 nos 8 estados + intro — compare com a baseline antes de cada commit visual.
+
+---
 
 ## 10. Build do .EXE
 
@@ -234,24 +275,45 @@ pip install -r requirements.txt -r requirements-voice.txt -r requirements-ui.txt
 build.bat
 ```
 
-`build.bat` → `python build.py` (10 etapas: limpa, valida imports, roda os
-178 testes, gera ícone `.ico` sintetizado, checa voz, roda PyInstaller via
-`jarvis.spec`, valida o `dist\`, grava `dist\BUILD_INFO.txt`).
-Empacotamento **one-dir** (`dist\JARVIS\JARVIS.exe` + `_internal\`), sem
-console, sem UPX. Voz incluída somente se instalada no build (lazy-imports
-preservados). Fora do Windows, `build.py` roda em **modo verificação**
-(testes + validações, sem PyInstaller). Teste do EXE: abrir, executar
-`que horas são?` digitado, F11, trocar tema, `:sair` limpo.
+`build.bat` → `python build.py` (10 etapas: Python, dependências, limpa
+`build/`+`dist/`, roda a suíte, gera ícone `.ico` sintetizado, PyInstaller
+via `jarvis.spec`, pasta `models/`, extras, valida o EXE, smoke `--version`).
+Empacotamento **one-dir**:
+
+```
+dist\JARVIS\J.A.R.V.I.S.exe
+dist\JARVIS\_internal\
+dist\JARVIS\models\LEIA-ME.txt
+dist\JARVIS\BUILD_INFO.txt
+dist\JARVIS\README.md
+```
+
+Sem console (`console=False`), sem UPX. Voz incluída somente se instalada
+no build (lazy-imports preservados). Fora do Windows, `build.py` roda em
+**modo verificação** (testes + ícone + `build/BUILD_INFO.txt`, sem
+PyInstaller).
+
+**REQUER VALIDAÇÃO NO WINDOWS:** o arquivo `dist\JARVIS\J.A.R.V.I.S.exe`
+só pode ser gerado e executado em uma máquina Windows. O smoke test do
+build (`--cli --version`) confirma que o processo sobe e sai com código 0;
+como o EXE é windowed, a stdout pode ser vazia — o código de saída é o
+critério. Roteiro manual no Windows: abrir, intro, HUB, `que horas são?`
+digitado, F11, trocar tema, segunda instância foca a primeira, fechar limpo.
+
+---
 
 ## 11. Auditoria de bugs
 
-`docs/BUG_AUDIT.md` — 3 ciclos de caça (núcleo sob estresse, HUB Qt,
-corridas/interrupções), 74 verificações executáveis em `docs/audit/`,
-**100% verdes**, 1 bug real encontrado e corrigido com teste de regressão
-+ regra de regressão permanente para PRs futuros.
+`docs/BUG_AUDIT.md` — 4 ciclos de caça (núcleo sob estresse, HUB Qt,
+corridas/interrupções, finalização), scripts em `docs/audit/`.
+Bugs reais encontrados foram corrigidos com teste de regressão + regra
+permanente para PRs futuros.
+
+---
 
 ## 12. Filosofia e proibições
 
 - Sem OpenAI/LLM/APIs de IA, sem STT/TTS online, sem nuvem obrigatória.
 - Entrada do usuário **nunca** é executada como shell: só ações registradas.
 - Confirmar antes de reiniciar/desligar/fechar.
+- Sem placeholders, sem botão falso, sem "parece funcionar".

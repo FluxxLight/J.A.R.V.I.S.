@@ -138,12 +138,11 @@ class AutostartManager:
 def default_start_command() -> str:
     """Comando registrado no Run: EXE empacotado ou `python main.py --hub`."""
     import sys
+    from pathlib import Path
     if getattr(sys, "frozen", False):
         return f'"{sys.executable}"'
     exe = sys.executable or "python"
-    main_py = __file__
-    # jarvis/ui/hub/autostart.py -> raiz/main.py
-    for _ in range(4):
-        main_py = str(__import__("pathlib").Path(main_py).parent)
-    candidate = __import__("pathlib").Path(main_py) / "main.py"
+    # jarvis/ui/hub/autostart.py -> raiz do projeto
+    root = Path(__file__).resolve().parents[3]
+    candidate = root / "main.py"
     return f'"{exe}" "{candidate}" --hub'

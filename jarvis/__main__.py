@@ -1,6 +1,8 @@
 """Entry point: `python -m jarvis`."""
 
+import sys
+
 from jarvis.ui.cli import main
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

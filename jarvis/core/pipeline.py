@@ -8,8 +8,6 @@ trata a wake word e chama esta mesma função.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from jarvis.command_engine.engine import CommandEngine, EngineResult
 from jarvis.logger import get_logger
 

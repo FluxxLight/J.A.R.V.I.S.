@@ -1,7 +1,7 @@
-"""GUI mínima (tkinter, stdlib) — temporária até o HUB (etapa visual).
+"""GUI mínima (tkinter, stdlib) — fallback quando o HUB Qt não está disponível.
 
 Toda lógica permanece no Core/Engine; esta janela só envia texto e exibe
-respostas. Não contém regra de negócio.
+respostas. Não contém regra de negócio. Preferir `python main.py --hub`.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ def run_gui(app: "JarvisApp") -> int:
     from tkinter import scrolledtext
 
     root = tk.Tk()
-    root.title("J.A.R.V.I.S. — console (etapa 1.2)")
+    root.title("J.A.R.V.I.S. — console")
     root.geometry("640x440")
     root.configure(bg="#0b1220")
 

@@ -221,12 +221,17 @@ def test_hub_fullscreen_toggle(hub_env):
 
 def test_hub_resolutions(hub_env):
     qt_app, core, hub = hub_env
-    for width, height in ((1280, 720), (1366, 768), (1920, 1080)):
+    for width, height in ((800, 600), (1280, 720), (1366, 768),
+                          (1920, 1080), (2560, 1440)):
         hub.resize(width, height)
         qt_app.processEvents()
-        assert hub.nucleus.width() > 100
-        assert hub.nucleus.height() > 100
-        assert len(_grab_bytes(hub)) > 20000
+        assert hub.nucleus.width() > 80, (width, height, hub.nucleus.width())
+        assert hub.nucleus.height() > 80, (width, height, hub.nucleus.height())
+        assert hub._left_col.width() <= 320
+        assert hub._right_col.width() <= 320
+        if width < 1024:
+            assert hub._left_col.width() <= 200
+        assert len(_grab_bytes(hub)) > 8000
 
 
 def test_hub_custom_command_end_to_end(hub_env):
@@ -254,6 +259,25 @@ def test_settings_dialog_theme_change(hub_env):
     qt_app.processEvents()
     assert core.settings.get("ui.theme") == "verde"
     assert hub._theme.id == "verde"
+    dialog.close()
+
+
+def test_settings_intro_checkboxes_stay_in_sync(hub_env):
+    qt_app, core, hub = hub_env
+    from jarvis.ui.hub.settings_ui import SettingsDialog
+    dialog = SettingsDialog(core, hub)
+    dialog.show()
+    qt_app.processEvents()
+    assert dialog.intro_check.isChecked() is True
+    assert dialog.intro_check_startup.isChecked() is True
+    dialog.intro_check.setChecked(False)
+    qt_app.processEvents()
+    assert core.settings.get("intro.enabled") is False
+    assert dialog.intro_check_startup.isChecked() is False
+    dialog.intro_check_startup.setChecked(True)
+    qt_app.processEvents()
+    assert core.settings.get("intro.enabled") is True
+    assert dialog.intro_check.isChecked() is True
     dialog.close()
 
 

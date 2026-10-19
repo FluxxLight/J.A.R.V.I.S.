@@ -17,7 +17,7 @@ from jarvis.logger import get_logger
 from jarvis.ui.hub.audio import SfxPlayer
 from jarvis.ui.hub.nucleus import NucleusWidget
 from jarvis.ui.hub.qt_compat import require_qt
-from jarvis.ui.hub.themes import (SPACE_LG, SPACE_MD, SPACE_SM, SPACE_XL,
+from jarvis.ui.hub.themes import (SPACE_LG, SPACE_MD, SPACE_SM,
                                   FeedbackView, Theme, build_stylesheet,
                                   cycle_theme, feedback_for, get_theme)
 from jarvis.ui.hub.widgets import (ClockWidget, FeedbackCard, HistoryWidget,
@@ -26,7 +26,7 @@ from jarvis.ui.hub.widgets import (ClockWidget, FeedbackCard, HistoryWidget,
 
 require_qt()
 
-from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QObject, QThread, QTimer, Signal
 from PySide6.QtGui import (QAction, QColor, QKeySequence, QPainter,
                            QPaintEvent, QResizeEvent)
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QLineEdit,
@@ -164,16 +164,23 @@ class VoiceWorker(QThread):
 # ---------------------------------------------------------------------------
 
 class HubWindow(QMainWindow):
-    def __init__(self, app, sfx: Optional[SfxPlayer] = None) -> None:
+    def __init__(self, app, sfx: Optional[SfxPlayer] = None, *,
+                 start_fullscreen: bool = False,
+                 start_minimized: bool = False) -> None:
         super().__init__()
         self._app = app
         self._sfx = sfx or SfxPlayer(enabled=False)
         self._theme: Theme = get_theme(app.settings.get("ui.theme", "azul"))
         self._busy = False
         self._worker: Optional[QThread] = None
+        self._start_fullscreen = bool(start_fullscreen)
+        self._start_minimized = bool(start_minimized)
+        self._left_col: Optional[QWidget] = None
+        self._right_col: Optional[QWidget] = None
 
         self.setWindowTitle("J.A.R.V.I.S. — Centro de Comando")
-        self.setMinimumSize(1100, 680)
+        # 800×560 cabe em 1280×720 @ 150% e 1366×768 @ 175% (DPI Windows).
+        self.setMinimumSize(800, 560)
         self.resize(1440, 860)
 
         self._bg = HubBackground(self)
@@ -185,9 +192,11 @@ class HubWindow(QMainWindow):
         root.addWidget(self._build_topbar())
         main = QHBoxLayout()
         main.setSpacing(SPACE_MD)
-        main.addWidget(self._build_left(), 0)
+        self._left_col = self._build_left()
+        self._right_col = self._build_right()
+        main.addWidget(self._left_col, 0)
         main.addWidget(self._build_center(), 1)
-        main.addWidget(self._build_right(), 0)
+        main.addWidget(self._right_col, 0)
         root.addLayout(main, 1)
 
         self._status_label = QLabel("INICIANDO")
@@ -254,6 +263,7 @@ class HubWindow(QMainWindow):
     def _build_left(self) -> QWidget:
         col = QWidget()
         col.setFixedWidth(300)
+        col.setObjectName("hubLeft")
         layout = QVBoxLayout(col)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(SPACE_MD)
@@ -319,6 +329,7 @@ class HubWindow(QMainWindow):
     def _build_right(self) -> QWidget:
         col = QWidget()
         col.setFixedWidth(320)
+        col.setObjectName("hubRight")
         layout = QVBoxLayout(col)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(SPACE_MD)
@@ -547,18 +558,43 @@ class HubWindow(QMainWindow):
 
     def _after_show(self) -> None:
         try:
-            if bool(self._app.settings.get("startup.start_minimized", False)):
+            if self._start_minimized or bool(
+                    self._app.settings.get("startup.start_minimized", False)):
                 self.showMinimized()
-            elif bool(self._app.settings.get("ui.fullscreen", False)):
+            elif self._start_fullscreen or bool(
+                    self._app.settings.get("ui.fullscreen", False)):
                 self.showFullScreen()
         except Exception:
             pass
+        self._adapt_layout(self.width())
         self._apply_runtime_settings()
         self.feed.append_event("sys", "HUB online. Núcleo sincronizado com o Core.")
         self.history.refresh(self._app.memory)
 
-    def keyPressEvent(self, event) -> None:  # noqa: N802
-        super().keyPressEvent(event)
+    def _adapt_layout(self, width: int) -> None:
+        """Colunas laterais proporcionais à largura (DPI / resolução)."""
+        if width >= 1600:
+            left, right = 300, 320
+        elif width >= 1280:
+            left, right = 260, 280
+        elif width >= 1024:
+            left, right = 220, 240
+        else:
+            left, right = 180, 200
+        try:
+            if self._left_col is not None:
+                self._left_col.setFixedWidth(left)
+            if self._right_col is not None:
+                self._right_col.setFixedWidth(right)
+        except Exception:
+            pass
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        try:
+            self._adapt_layout(event.size().width())
+        except Exception:
+            pass
 
     def show_and_focus(self) -> None:
         """Traz a instância existente para frente (single instance)."""

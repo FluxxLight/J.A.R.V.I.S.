@@ -51,6 +51,16 @@ def test_settings_and_memory_persist(data_dir):
         app2.shutdown()
 
 
+def test_audit_regression_ready_may_yield_to_speaking():
+    """Achado do Prompt 4: TTS é assíncrono — handle_text já foi para READY
+    quando o worker de fala dispara SPEAKING. READY→SPEAKING precisa ser
+    válido, senão o HUB nunca mostra o estado de voz."""
+    from jarvis.core.states import StateMachine, SystemState as S
+    sm = StateMachine(initial=S.READY)
+    assert sm.to(S.SPEAKING) is True
+    assert sm.state == S.SPEAKING
+
+
 def test_audit_regression_speaking_may_yield_to_work():
     """Achado da auditoria ciclo 1: overlap assíncrono TTS↔pipeline fazia o
     app tentar SPEAKING→EXECUTING e logar 'Transição inválida'. Falar nunca

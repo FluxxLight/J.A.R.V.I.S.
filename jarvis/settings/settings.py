@@ -19,7 +19,7 @@ log = get_logger("settings")
 
 DEFAULTS: dict[str, Any] = {
     "language": "pt-BR",
-    "theme": "dark",  # usado pelo HUB (etapa visual futura)
+    "theme": "dark",  # legado (1.2); o HUB usa ui.theme
     "behavior": {
         "confirm_dangerous": True,
         "response_style": "short",  # short | normal
@@ -41,7 +41,7 @@ DEFAULTS: dict[str, Any] = {
         "volume": 0.9,   # 0.0 - 1.0
     },
     "intro": {
-        "enabled": True,  # intro cinematográfica (etapa visual futura)
+        "enabled": True,  # intro cinematográfica do HUB
         "sound": True,
     },
     "startup": {

@@ -40,9 +40,24 @@ def make_icon(theme: Theme, size: int = 64):
     return QIcon(pix)
 
 
+def _configure_dpi() -> None:
+    """DPI do Windows: scaling nativo, sem arredondar 125%/150% para 100%/200%."""
+    import os
+    os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
+    try:
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication
+        QApplication.setHighDpiScaleFactorRoundingPolicy(
+            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    except Exception:
+        pass
+
+
 def run_hub(data_dir: Optional[str] = None, dry_run: bool = False,
-            no_intro: bool = False) -> int:
+            no_intro: bool = False, fullscreen: bool = False,
+            minimized: bool = False) -> int:
     require_qt()
+    _configure_dpi()
     from PySide6.QtWidgets import QApplication
 
     from jarvis.ui.hub.hub_window import HubWindow
@@ -72,7 +87,9 @@ def run_hub(data_dir: Optional[str] = None, dry_run: bool = False,
 
     sfx = SfxPlayer(enabled=bool(app.settings.get("intro.sound", True)))
 
-    hub = HubWindow(app, sfx=sfx)
+    hub = HubWindow(app, sfx=sfx,
+                    start_fullscreen=fullscreen,
+                    start_minimized=minimized)
     qt_app.setWindowIcon(make_icon(hub._theme))
 
     # 3) servidor single-instance (foca esta janela quando uma 2ª abrir)

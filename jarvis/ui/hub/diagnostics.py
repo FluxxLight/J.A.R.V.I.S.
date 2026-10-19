@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Tuple
 
+from jarvis import __version__
+
 if TYPE_CHECKING:  # pragma: no cover
     from jarvis.core.app import JarvisApp
 
@@ -14,6 +16,12 @@ def run_diagnostics(app: "JarvisApp") -> List[Tuple[str, bool, str]]:
 
     def add(name: str, ok: bool, detail: str) -> None:
         results.append((name, bool(ok), str(detail)[:160]))
+
+    # 0) versão (fonte única: jarvis.__version__)
+    try:
+        add("Versão", bool(__version__), __version__)
+    except Exception as exc:
+        add("Versão", False, str(exc))
 
     # 1) armazenamento
     try:

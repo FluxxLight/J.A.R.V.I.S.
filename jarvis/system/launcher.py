@@ -16,7 +16,7 @@ from typing import Optional, Tuple
 from urllib.parse import urlparse
 
 from jarvis.logger import get_logger
-from jarvis.utils.platform import is_linux, is_macos, is_windows
+from jarvis.utils.platform import is_macos, is_windows
 
 log = get_logger("system.launcher")
 

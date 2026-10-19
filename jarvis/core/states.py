@@ -37,6 +37,7 @@ _ALLOWED: dict[Optional[SystemState], set[SystemState]] = {
     SystemState.STARTING: {SystemState.READY, SystemState.ERROR, SystemState.SHUTDOWN},
     SystemState.READY: {
         SystemState.IDLE, SystemState.LISTENING, SystemState.PROCESSING,
+        SystemState.SPEAKING,  # TTS assíncrono pode iniciar após READY
         SystemState.ERROR, SystemState.SHUTDOWN,
     },
     SystemState.IDLE: {

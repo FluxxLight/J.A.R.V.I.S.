@@ -1,6 +1,8 @@
 """AUDITORIA CICLO 3 — corrida, interrupção, estados impossíveis, assets."""
 import json, os, shutil, sys, threading, time
 sys.path.insert(0, "/home/user/J.A.R.V.I.S.")
+shutil.rmtree("/tmp/audit3", ignore_errors=True)
+shutil.rmtree("/tmp/audit3cli", ignore_errors=True)
 from PySide6.QtWidgets import QApplication
 
 FAIL = []
@@ -157,7 +159,8 @@ import subprocess
 env = dict(os.environ)
 base_cmd = [sys.executable, "main.py", "--cli", "--data-dir", "/tmp/audit3cli", "--dry-run"]
 r = subprocess.run(base_cmd + ["--version"], capture_output=True, text=True, cwd="/home/user/J.A.R.V.I.S.", env=env, timeout=60)
-check("--version exit 0", r.returncode == 0 and "2.0.0" in r.stdout, r.stdout.strip()[:20])
+from jarvis import __version__ as _VER
+check("--version exit 0", r.returncode == 0 and _VER in r.stdout, r.stdout.strip()[:20])
 r = subprocess.run(base_cmd + ["--exec", "que horas são?"], capture_output=True, text=True, cwd="/home/user/J.A.R.V.I.S.", env=env, timeout=60)
 check("--exec exit 0", r.returncode == 0)
 r = subprocess.run(base_cmd + ["--exec", "xyz blargh impossivel"], capture_output=True, text=True, cwd="/home/user/J.A.R.V.I.S.", env=env, timeout=60)

@@ -18,10 +18,13 @@ import os
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 MIN_PYTHON = (3, 10)
+EXE_NAME = "J.A.R.V.I.S.exe"
+DIST_DIRNAME = "JARVIS"
 
 
 def _run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
@@ -108,8 +111,9 @@ def main(argv: list[str]) -> int:
         os.environ["JARVIS_ICON"] = str(icon)
 
     if os.name != "nt":
+        _write_build_info(ROOT / "build", voice, exe_path=None)
         print("\nModo verificação concluído (fora do Windows não há EXE).")
-        print("No Windows, o build continuaria: PyInstaller -> dist/JARVIS/.")
+        print("No Windows, o build continuaria: PyInstaller -> dist/JARVIS/J.A.R.V.I.S.exe.")
         return 0
 
     step(6, "Empacotando com PyInstaller (assets via jarvis.spec)")
@@ -119,7 +123,7 @@ def main(argv: list[str]) -> int:
         return fail("PyInstaller falhou.")
 
     step(7, "Preparando pasta de modelos")
-    exe_dir = ROOT / "dist" / "JARVIS"
+    exe_dir = ROOT / "dist" / DIST_DIRNAME
     models = exe_dir / "models"
     models.mkdir(parents=True, exist_ok=True)
     (models / "LEIA-ME.txt").write_text(
@@ -136,17 +140,19 @@ def main(argv: list[str]) -> int:
             print("copiado:", name)
 
     step(9, "Verificando o EXE")
-    exe = exe_dir / "J.A.R.V.I.S.exe"
+    exe = exe_dir / EXE_NAME
     if not exe.exists():
         return fail(f"EXE não gerado: {exe}")
     size_mb = exe.stat().st_size / 1_000_000
     print(f"EXE: {exe} ({size_mb:.1f} MB)")
+    _write_build_info(exe_dir, voice, exe_path=exe)
 
     step(10, "Smoke test do EXE (--version)")
     try:
         result = _run([str(exe), "--cli", "--version"], capture_output=True,
                       text=True, timeout=60)
-        print("saída:", (result.stdout or "").strip()[:80])
+        print("saída:", (result.stdout or "").strip()[:80]
+              or "(sem stdout — EXE windowed, console=False)")
         if result.returncode != 0:
             return fail("EXE não respondeu a --version.")
     except subprocess.TimeoutExpired:
@@ -154,6 +160,28 @@ def main(argv: list[str]) -> int:
 
     print("\nBUILD CONCLUÍDO:", exe_dir)
     return 0
+
+
+def _write_build_info(target_dir: Path, voice: dict, exe_path: Path | None) -> None:
+    """Grava BUILD_INFO.txt na pasta de distribuição (ou build/ em verificação)."""
+    from jarvis import __version__
+    target_dir.mkdir(parents=True, exist_ok=True)
+    voice_line = ", ".join(f"{k}={'sim' if v else 'não'}" for k, v in voice.items())
+    exe_line = str(exe_path) if exe_path else "N/A (modo verificação — gere no Windows)"
+    text = (
+        f"J.A.R.V.I.S. v{__version__}\n"
+        f"built_utc={datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
+        f"python={sys.version.split()[0]}\n"
+        f"platform={sys.platform}\n"
+        f"voice={voice_line}\n"
+        f"exe={exe_line}\n"
+        f"layout=one-dir dist/JARVIS/ + _internal/\n"
+        f"offline=yes\n"
+        f"llm=none\n"
+    )
+    path = target_dir / "BUILD_INFO.txt"
+    path.write_text(text, encoding="utf-8")
+    print("BUILD_INFO:", path)
 
 
 if __name__ == "__main__":

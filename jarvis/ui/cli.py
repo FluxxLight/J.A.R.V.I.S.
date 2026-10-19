@@ -130,6 +130,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="força o console texto (padrão quando sem Qt/display)")
     parser.add_argument("--no-intro", action="store_true",
                         help="pula a intro cinematográfica")
+    parser.add_argument("--fullscreen", action="store_true",
+                        help="abre o HUB em tela cheia (não persiste)")
+    parser.add_argument("--minimized", action="store_true",
+                        help="abre o HUB minimizado (não persiste)")
     parser.add_argument("--dry-run", action="store_true",
                         help="simula ações sem executar (seguro p/ testes)")
     parser.add_argument("--data-dir", default=None, help="diretório de dados local")
@@ -149,7 +153,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.hub or (not args.cli and _should_open_hub(args)):
         from jarvis.ui.hub.app_qt import run_hub
         return run_hub(data_dir=args.data_dir, dry_run=args.dry_run,
-                       no_intro=args.no_intro)
+                       no_intro=args.no_intro,
+                       fullscreen=args.fullscreen,
+                       minimized=args.minimized)
 
     if args.gui:
         from jarvis.ui.gui_min import run_gui

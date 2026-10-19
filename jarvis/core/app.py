@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import threading
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import List, Optional
 
 from jarvis.actions.system import register_all as register_actions
 from jarvis.command_engine.engine import CommandEngine, EngineResult

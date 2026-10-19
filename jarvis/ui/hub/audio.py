@@ -24,14 +24,28 @@ log = get_logger("ui.audio")
 def sfx_path(name: str) -> Path | None:
     if name not in SOUNDS:
         return None
-    candidate = ASSETS_DIR / f"{name}.wav"
-    # Suporte a bundle PyInstaller: assets ao lado do executável também.
-    if not candidate.exists():
-        alt = Path(__file__).resolve().parent / "assets" / "sfx" / f"{name}.wav"
-        if alt.exists():
-            return alt
-        return None
-    return candidate
+    candidates = [
+        ASSETS_DIR / f"{name}.wav",
+        Path(__file__).resolve().parent / "assets" / "sfx" / f"{name}.wav",
+    ]
+    # Bundle PyInstaller (one-dir / one-file): _MEIPASS ou ao lado do EXE.
+    import sys
+    if getattr(sys, "frozen", False):
+        meipass = Path(getattr(sys, "_MEIPASS", sys.executable)).resolve()
+        exe_dir = Path(sys.executable).resolve().parent
+        rel = Path("jarvis") / "ui" / "hub" / "assets" / "sfx" / f"{name}.wav"
+        candidates.extend([
+            meipass / rel,
+            exe_dir / "_internal" / rel,
+            exe_dir / "assets" / "sfx" / f"{name}.wav",
+        ])
+    for candidate in candidates:
+        try:
+            if candidate.exists():
+                return candidate
+        except OSError:
+            continue
+    return None
 
 
 class SfxPlayer:
