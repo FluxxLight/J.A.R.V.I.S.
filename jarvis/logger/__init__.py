@@ -34,7 +34,12 @@ def setup_logging(log_dir: Path | str, console_level: int = logging.INFO,
 
     root = logging.getLogger("jarvis")
     root.setLevel(logging.DEBUG)
-    root.handlers.clear()
+    for old_handler in list(root.handlers):
+        try:
+            root.removeHandler(old_handler)
+            old_handler.close()
+        except Exception:
+            pass
     root.propagate = False
 
     file_handler = RotatingFileHandler(

@@ -44,9 +44,28 @@ def test_repeat_dangerous_refused():
     assert res.applied is False
 
 
+def test_section49_full_loop(engine):
+    """§49: 'Abra o Discord.' -> 'Feche ele.' -> 'Abra novamente.'"""
+    first = engine.process("abra o discord")
+    assert first.success is True
+    second = engine.process("feche ele")
+    assert second.intent == "CLOSE_APP", second
+    assert second.params.get("app") == "discord", second
+    assert second.success is True
+    # "abra novamente" repete a ÚLTIMA ação segura (o fechamento)
+    third = engine.process("abra novamente")
+    assert third.intent == "CLOSE_APP", third
+
+
+def test_repeat_open_again(engine):
+    engine.process("abra o discord")
+    again = engine.process("novamente")
+    assert again.success is True
+    assert again.intent == "OPEN_APP"
+
+
 def test_engine_uses_context_for_pronoun(engine):
     engine.process("abra o discord")
-    # "feche ele" não é comando nativo de fechar app; o teste garante que o
-    # contexto ao menos reescreveu (intent pode ser UNKNOWN, mas aplicado).
     res = engine.context.resolve("feche ele")
     assert res.applied is True
+    assert "discord" in (res.rewritten_text or "")

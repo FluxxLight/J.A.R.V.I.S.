@@ -123,6 +123,79 @@ def toggle_fullscreen_foreground() -> Tuple[bool, str]:
         return False, f"Erro: {exc}"
 
 
+def close_app_windows(exe_names: list[str], title_hint: str = "") -> Tuple[bool, str]:
+    """Fecha janelas visíveis de um app (por executável ou título). Suave: WM_CLOSE.
+
+    Retorna (True, msg) se ao menos uma janela foi sinalizada.
+    """
+    import ctypes
+
+    if not is_windows():
+        return False, "Fechar aplicativos disponível apenas no Windows."
+    try:
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+    except Exception as exc:
+        return False, f"API do Windows indisponível: {exc}"
+
+    targets = {n.strip().lower() for n in (exe_names or []) if n and n.strip()}
+    hint = (title_hint or "").strip().lower()
+    closed = 0
+
+    def _process_exe(pid: int) -> str:
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED
+        if not handle:
+            return ""
+        try:
+            size = ctypes.c_uint(260)
+            buf = ctypes.create_unicode_buffer(260)
+            if kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+                return str(buf.value).rsplit("\\", 1)[-1].lower()
+            return ""
+        except Exception:
+            return ""
+        finally:
+            try:
+                kernel32.CloseHandle(handle)
+            except Exception:
+                pass
+
+    def _callback(hwnd, _param) -> bool:
+        nonlocal closed
+        try:
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            length = int(user32.GetWindowTextLengthW(hwnd) or 0)
+            title = ""
+            if length > 0:
+                buf = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buf, length + 1)
+                title = str(buf.value or "")
+            pid = ctypes.c_uint(0)
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            exe = _process_exe(pid.value) if pid.value else ""
+            match = bool(exe and exe in targets)
+            if not match and hint and len(hint) >= 3 and hint in title.lower():
+                match = True
+            if match:
+                user32.PostMessageW(hwnd, 0x0010, 0, 0)  # WM_CLOSE
+                closed += 1
+        except Exception:
+            log.exception("close_app_windows: janela ignorada (não fatal)")
+        return True
+
+    try:
+        CMPFUNC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+        user32.EnumWindows(CMPFUNC(_callback), 0)
+    except Exception as exc:
+        log.exception("EnumWindows falhou")
+        return False, f"Falha ao fechar: {exc}"
+    if closed > 0:
+        plural = "s" if closed > 1 else ""
+        return True, f"Fechada{plural} {closed} janela{plural}."
+    return False, "Nenhuma janela encontrada para esse aplicativo."
+
+
 def open_windows_settings(section: str = "") -> Tuple[bool, str]:
     """Abre Configurações do Windows (ms-settings:)."""
     import subprocess

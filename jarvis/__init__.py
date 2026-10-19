@@ -6,7 +6,7 @@
 
 """Pacote principal do J.A.R.V.I.S."""
 
-__version__ = "1.2.0"
+__version__ = "2.0.0"
 __author__ = "J.A.R.V.I.S. Project"
 __language__ = "pt-BR"
 

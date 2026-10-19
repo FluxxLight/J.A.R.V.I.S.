@@ -100,7 +100,10 @@ class ContextManager:
             # 1) Repetição: "de novo" / "repete"
             if normalized in {"de novo", "denovo", "repete", "repetir",
                               "outra vez", "novamente"} or \
-                    normalized.endswith(" de novo") or normalized.endswith(" outra vez"):
+                    normalized.endswith(" de novo") or \
+                    normalized.endswith(" outra vez") or \
+                    normalized.endswith(" novamente") or \
+                    normalized.endswith(" denovo"):
                 last = self._turns[-1]
                 if last.intent and last.intent not in _UNSAFE_REPEAT_INTENTS:
                     log.info("Contexto: repetindo '%s'", last.text)

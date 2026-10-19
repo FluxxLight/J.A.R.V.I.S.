@@ -49,3 +49,14 @@ def test_settings_and_memory_persist(data_dir):
         assert app2.handle_text("que horas são?").success is True
     finally:
         app2.shutdown()
+
+
+def test_audit_regression_speaking_may_yield_to_work():
+    """Achado da auditoria ciclo 1: overlap assíncrono TTS↔pipeline fazia o
+    app tentar SPEAKING→EXECUTING e logar 'Transição inválida'. Falar nunca
+    pode bloquear trabalho novo chegando."""
+    from jarvis.core.states import StateMachine, SystemState as S
+    for target in (S.EXECUTING, S.PROCESSING, S.LISTENING):
+        sm = StateMachine(initial=S.SPEAKING)
+        assert sm.to(target) is True, f"SPEAKING->{target}"
+        assert sm.state == target

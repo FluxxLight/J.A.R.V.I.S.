@@ -46,6 +46,28 @@ class OpenApplication(Action):
         return _fail(msg)
 
 
+class CloseApplication(Action):
+    id = "CloseApplication"
+
+    def validate(self, params: dict[str, Any]) -> Optional[str]:
+        if not str(params.get("app", "") or "").strip():
+            return "Diga qual aplicativo fechar. Ex.: feche o Discord."
+        return None
+
+    def execute(self, params: dict[str, Any], ctx: ActionContext) -> ActionResult:
+        app = str(params.get("app", "")).strip()
+        label = app.capitalize()
+        if ctx.dry_run:
+            return _done(f"[dry-run] fecharia {app}", f"Fechando {label}.", app=app)
+        entry = launcher.APP_CATALOG.get(app.lower(), {})
+        exe_names = list(entry.get("exe_names", [])) + [app, f"{app}.exe"]
+        ok, msg = windows.close_app_windows(exe_names, title_hint=app)
+        if ok:
+            return _done(msg, f"Fechando {label}.", app=app)
+        return _fail(msg if "Windows" not in msg else
+                     f"Não consegui fechar {label}: {msg}")
+
+
 class OpenUrl(Action):
     id = "OpenUrl"
 
@@ -220,7 +242,7 @@ class Speak(Action):
 
 def register_all(registry) -> None:
     """Registra todas as ações centrais no registry."""
-    for cls in (OpenApplication, OpenUrl, OpenFolder, OpenWindowsSettings,
+    for cls in (OpenApplication, CloseApplication, OpenUrl, OpenFolder, OpenWindowsSettings,
                 GetTime, GetDate, MinimizeWindow, MaximizeWindow,
                 ToggleFullscreen, LockComputer, RestartComputer,
                 ShutdownComputer, ExitJarvis, Speak):

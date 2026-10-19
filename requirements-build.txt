@@ -1,2 +1,4 @@
-# J.A.R.V.I.S. — build do .EXE (Windows, etapa futura de empacotamento)
+# J.A.R.V.I.S. — build do EXE (Windows)
+# Uso: build.bat  (ou: python build.py)
 pyinstaller>=6.0
+# A UI (PySide6) é necessária no build: pip install -r requirements-ui.txt

@@ -57,6 +57,8 @@ _ALLOWED: dict[Optional[SystemState], set[SystemState]] = {
     },
     SystemState.SPEAKING: {
         SystemState.READY, SystemState.IDLE, SystemState.ERROR, SystemState.SHUTDOWN,
+        # comando novo pode chegar enquanto ainda fala (fala é assíncrona)
+        SystemState.PROCESSING, SystemState.EXECUTING, SystemState.LISTENING,
     },
     SystemState.ERROR: {
         SystemState.READY, SystemState.IDLE, SystemState.SHUTDOWN,

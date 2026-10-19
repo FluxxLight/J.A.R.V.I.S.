@@ -68,6 +68,30 @@ def test_open_known_site(engine):
     assert "youtube" in r.params.get("url", ""), r
 
 
+def test_close_app(engine):
+    r = engine.process("feche o discord")
+    assert r.intent == "CLOSE_APP", r
+    assert r.params.get("app") == "discord"
+    assert r.success is True and r.executed is True  # dry-run simula
+
+
+def test_close_app_needs_target(engine):
+    r = engine.process("feche")
+    assert r.intent == "CLOSE_APP"
+    assert r.success is False
+    assert "qual aplicativo" in r.message.lower()
+
+
+def test_close_pronoun_without_context_asks(engine):
+    r = engine.process("feche ele")
+    assert r.success is False  # sem contexto: honesto, pede o alvo
+
+
+def test_exit_wins_over_close(engine):
+    r = engine.process("feche o jarvis")
+    assert r.intent == "EXIT_JARVIS", r
+
+
 def test_never_raises(engine):
     for weird in [None, "", " ", "x" * 1000, "!@#$%", "12345",
                   "çãõü ë", "\n\t", "J.A.R.V.I.S.,"]:

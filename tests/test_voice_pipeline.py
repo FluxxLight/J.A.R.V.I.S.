@@ -58,6 +58,12 @@ def test_wake_required_mode(engine):
     assert ok.ignored is False and ok.intent == "OPEN_BROWSER"
 
 
+def test_voice_close_app(voice):
+    trace = voice.process_transcript("jarvis, feche o discord")
+    assert trace.intent == "CLOSE_APP", trace
+    assert trace.engine_result is not None and trace.engine_result.success
+
+
 def test_trace_has_full_debug_fields(voice):
     trace = voice.process_transcript("jarvis, que horas são?")
     for field in ("raw", "normalized", "wake_detected", "command_after_wake",

@@ -96,9 +96,40 @@ def _handle_meta(app: JarvisApp, line: str) -> bool:
     return True
 
 
+def _should_open_hub(args) -> bool:
+    """HUB é o padrão quando há Qt + (display ou Windows/frozen).
+
+    Nunca abre HUB para comandos utilitários/não interativos.
+    """
+    if args.exec is not None or args.test_voice is not None:
+        return False
+    if args.list_mics or args.list_voices:
+        return False
+    try:
+        from jarvis.ui.hub.qt_compat import HAS_QT
+        if not HAS_QT:
+            return False
+    except Exception:
+        return False
+    import os
+    import sys
+    if getattr(sys, "frozen", False):
+        return True
+    if os.environ.get("QT_QPA_PLATFORM"):
+        return True
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+                or sys.platform.startswith("win"))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="jarvis", description="J.A.R.V.I.S. local")
     parser.add_argument("--gui", action="store_true", help="abre interface gráfica mínima")
+    parser.add_argument("--hub", action="store_true",
+                        help="abre o HUB gráfico (PySide6)")
+    parser.add_argument("--cli", action="store_true",
+                        help="força o console texto (padrão quando sem Qt/display)")
+    parser.add_argument("--no-intro", action="store_true",
+                        help="pula a intro cinematográfica")
     parser.add_argument("--dry-run", action="store_true",
                         help="simula ações sem executar (seguro p/ testes)")
     parser.add_argument("--data-dir", default=None, help="diretório de dados local")
@@ -114,6 +145,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.version:
         print(__version__)
         return 0
+
+    if args.hub or (not args.cli and _should_open_hub(args)):
+        from jarvis.ui.hub.app_qt import run_hub
+        return run_hub(data_dir=args.data_dir, dry_run=args.dry_run,
+                       no_intro=args.no_intro)
 
     if args.gui:
         from jarvis.ui.gui_min import run_gui

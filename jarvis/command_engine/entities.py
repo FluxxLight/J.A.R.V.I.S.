@@ -18,6 +18,26 @@ _NOISE_WORDS = {"o", "a", "os", "as", "um", "uma", "meu", "minha", "meus", "minh
 
 _QUOTED_RE = re.compile(r'"([^"]+)"|\'([^\']+)\'')
 
+_CLOSE_VERBS = {"feche", "fechar", "fecha", "fechem"}
+_CLOSE_NOISE = _NOISE_WORDS | {"janela", "window", "aplicativo", "programa"}
+_PRONOUNS_BLOCK = {"ele", "ela", "eles", "elas", "isso", "isto", "esse", "essa",
+                   "este", "esta", "aquele", "aquela"}
+
+
+def extract_close_target(normalized: str) -> Optional[str]:
+    """Extrai o alvo de 'feche X'. Pronomes sem contexto -> None (honesto)."""
+    tokens = (normalized or "").split()
+    if not tokens:
+        return None
+    start = 1 if tokens[0] in _CLOSE_VERBS else 0
+    rest = [t for t in tokens[start:] if t not in _CLOSE_NOISE]
+    if not rest:
+        return None
+    candidate = " ".join(rest).strip()
+    if candidate in _PRONOUNS_BLOCK or len(candidate.split()) > 3:
+        return None
+    return candidate or None
+
 
 def extract_url(raw_text: str) -> Optional[str]:
     return launcher.extract_url(raw_text or "")
@@ -77,6 +97,10 @@ def build_params(intent: str, raw_text: str, normalized: str,
         app = extract_app_name(normalized)
         if app and not params.get("app"):
             params["app"] = app
+    elif intent == "CLOSE_APP":
+        target = extract_close_target(normalized)
+        if target and not params.get("app"):
+            params["app"] = target
     return params
 
 

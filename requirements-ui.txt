@@ -1,0 +1,7 @@
+# J.A.R.V.I.S. — interface gráfica (HUB + intro + temas)
+# Qt6 via PySide6: animações, DPI do Windows, empacotamento com PyInstaller.
+#
+# PINO DE ESTABILIDADE: PySide6 6.12.0 apresenta crash cumulativo de refcount
+# ("none_dealloc" durante GC após centenas de operações Qt) — ver
+# docs/BUG_AUDIT.md (BUG-001). Série 6.7.x validada sob estresse.
+PySide6>=6.6,<6.12

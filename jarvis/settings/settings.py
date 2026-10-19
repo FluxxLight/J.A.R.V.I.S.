@@ -48,6 +48,12 @@ DEFAULTS: dict[str, Any] = {
         "start_minimized": False,
         "autostart": False,
     },
+    "ui": {
+        "theme": "azul",       # azul | vermelho | verde | amarelo | cinza
+        "animations": True,
+        "fullscreen": False,   # iniciar em fullscreen
+        "nucleus_fps": 60,     # 30 | 60
+    },
     "apps": {
         # Atalhos de aplicativos conhecidos (podem ser sobrescritos).
         # Chave -> caminho/alias. Resolvidos por jarvis.system.launcher.
@@ -70,6 +76,8 @@ _SCHEMA: dict[str, Any] = {
     "tts": {"enabled": bool, "voice_id": str, "rate": int, "volume": (int, float)},
     "intro": {"enabled": bool, "sound": bool},
     "startup": {"start_minimized": bool, "autostart": bool},
+    "ui": {"theme": str, "animations": bool, "fullscreen": bool,
+           "nucleus_fps": int},
     "apps": dict,  # livre: str -> str
 }
 
@@ -121,6 +129,25 @@ def _validate(node: Any, schema: Any, defaults: Any, trail: str = "") -> Any:
     return copy.deepcopy(defaults)
 
 
+VALID_THEMES = ("azul", "vermelho", "verde", "amarelo", "cinza")
+
+
+def _validate_ui(data: dict[str, Any]) -> None:
+    """Validação extra da seção ui (enums/intervalos). Mutação in-place."""
+    ui = data.get("ui")
+    if not isinstance(ui, dict):
+        data["ui"] = copy.deepcopy(DEFAULTS["ui"])
+        return
+    if ui.get("theme") not in VALID_THEMES:
+        log.warning("Tema inválido (%r). Restaurando 'azul'.", ui.get("theme"))
+        ui["theme"] = "azul"
+    try:
+        fps = int(ui.get("nucleus_fps", 60))
+    except (TypeError, ValueError):
+        fps = 60
+    ui["nucleus_fps"] = 60 if fps >= 45 else 30
+
+
 class SettingsManager:
     """Gerencia settings.json com validação, recuperação e acesso por pontos."""
 
@@ -145,6 +172,7 @@ class SettingsManager:
             # garante chaves de topo que possam faltar
             for key, default in DEFAULTS.items():
                 clean.setdefault(key, copy.deepcopy(default))
+            _validate_ui(clean)
             self._data = clean
             # persiste a versão saneada (auto-recuperação)
             self._store.save(self._data)
@@ -173,6 +201,7 @@ class SettingsManager:
             self._data = _validate(self._data, _SCHEMA, DEFAULTS)
             for key, default in DEFAULTS.items():
                 self._data.setdefault(key, copy.deepcopy(default))
+            _validate_ui(self._data)
             ok = self._store.save(self._data)
             log.info("Config '%s' atualizada (persistido=%s)", dotted_key, ok)
             return ok

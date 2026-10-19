@@ -73,6 +73,15 @@ def build_native_commands() -> list[Command]:
                       "pode abrir o discord"],
              params={"app": "discord"}, category="apps", priority=60),
 
+        _cmd("native.close_app", "CLOSE_APP", "Fechar aplicativo",
+             ["feche o aplicativo", "fechar aplicativo", "feche", "fechar"],
+             "CloseApplication",
+             aliases=["fecha o aplicativo", "fechem o aplicativo",
+                      "feche a janela", "fechar a janela",
+                      "feche esse programa", "fecha esse programa",
+                      "encerre o aplicativo", "encerrar aplicativo"],
+             category="apps", priority=45),
+
         _cmd("native.open_url", "OPEN_URL", "Abrir site/link",
              ["abra o site", "abrir site", "abra o link"],
              "OpenUrl",
