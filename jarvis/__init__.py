@@ -11,7 +11,7 @@ diagnóstico, build e auditoria importam `__version__` — nunca duplicar o
 número em string solta.
 """
 
-__version__ = "2.2.0"
+__version__ = "2.2.1"
 __author__ = "J.A.R.V.I.S. Project"
 __language__ = "pt-BR"
 

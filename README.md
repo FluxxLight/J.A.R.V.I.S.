@@ -5,7 +5,7 @@ nenhum LLM, nenhuma API de IA, nenhum áudio ou comando sai do computador.
 A "inteligência" é determinística: regras, matching, aliases, intenções,
 parâmetros, contexto e memória local — *"IA sem ser IA"*.
 
-> Versão **2.2.0 — Refinamento**. HUB profissional, VAD local (fim de fala,
+> Versão **2.2.1 — Vosk no EXE**. HUB profissional, VAD local (fim de fala,
 > silêncio, ruído), intro cinematográfica, 5 temas, configurações reais,
 > voz local, Command Engine único, build `.exe` e auditoria. O HUB consome
 > os mesmos estados/serviços da fundação 1.2 — nenhum sistema duplicado.
@@ -293,7 +293,10 @@ dist\JARVIS\README.md
 ```
 
 Sem console (`console=False`), sem UPX. Voz incluída somente se instalada
-no build (lazy-imports preservados). Fora do Windows, `build.py` roda em
+no build. O pacote **Vosk nativo** (`libvosk.dll` + DLLs companheiras) é
+copiado para `dist\JARVIS\_internal\vosk\` — pasta que o `import vosk`
+exige no Windows. O `build.py` **falha** se o Vosk estava no ambiente e
+essa pasta não existir depois do PyInstaller. Fora do Windows, `build.py` roda em
 **modo verificação** (testes + ícone + `build/BUILD_INFO.txt`, sem
 PyInstaller).
 

@@ -75,6 +75,7 @@ está NESTA pasta do projeto (ou no ZIP gerado junto).
 7. ARQUIVOS QUE DEVEM PERMANECER JUNTOS
 ---------------------------------------
   EXE:     dist\JARVIS\J.A.R.V.I.S.exe  +  dist\JARVIS\_internal\  +  models\
+           (obrigatório: dist\JARVIS\_internal\vosk\libvosk.dll — não apague)
   Python:  main.py  +  pasta jarvis\  +  requirements*.txt
 
 

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import wave
 from dataclasses import dataclass
@@ -31,23 +32,42 @@ def default_model_dir() -> Path:
     return paths.base_dir() / "models" / "vosk"
 
 
+def _distribution_model_dirs() -> list[Path]:
+    """Pastas de modelo ao lado do EXE (dist/JARVIS/models[/vosk])."""
+    found: list[Path] = []
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        found.extend([exe_dir / "models" / "vosk", exe_dir / "models"])
+    return found
+
+
 def find_model(explicit: str = "") -> Optional[Path]:
-    """Localiza modelo Vosk: caminho explícito ou diretório padrão."""
+    """Localiza modelo Vosk: explícito, ao lado do EXE, ou %APPDATA%/JARVIS."""
+    candidates: list[Path] = []
     if explicit:
-        candidate = Path(explicit).expanduser()
-        if _looks_like_model(candidate):
-            return candidate
+        candidates.append(Path(explicit).expanduser())
+    candidates.extend(_distribution_model_dirs())
+    candidates.append(default_model_dir())
+    seen: set[Path] = set()
+    for base in candidates:
+        try:
+            base = base.resolve()
+        except OSError:
+            continue
+        if base in seen:
+            continue
+        seen.add(base)
+        if _looks_like_model(base):
+            return base
+        try:
+            if base.is_dir():
+                for child in sorted(base.iterdir()):
+                    if _looks_like_model(child):
+                        return child
+        except OSError:
+            continue
+    if explicit:
         log.warning("model_path configurado inválido: %s", explicit)
-    base = default_model_dir()
-    if _looks_like_model(base):
-        return base
-    try:
-        if base.is_dir():
-            for child in sorted(base.iterdir()):
-                if _looks_like_model(child):
-                    return child
-    except OSError:
-        pass
     return None
 
 
@@ -223,7 +243,13 @@ class VoskRecognizer(LocalRecognizer):
 
 
 def create_recognizer(model_path: str = "", sample_rate: int = 16000) -> LocalRecognizer:
-    """Fábrica: Vosk pronto OU indisponibilidade com motivo claro."""
+    """Fábrica: Vosk pronto OU indisponibilidade com motivo claro.
+
+    `import vosk` no Windows carrega libvosk.dll via add_dll_directory.
+    FileNotFoundError/OSError NÃO são ImportError — precisam ser pegos
+    para o HUB abrir mesmo com bundle incompleto. O empacotamento correto
+    (jarvis.spec + hooks/hook-vosk.py) é o que evita esse caminho.
+    """
     try:
         import vosk  # noqa: F401  # type: ignore[import-not-found]
     except ImportError:
@@ -232,13 +258,24 @@ def create_recognizer(model_path: str = "", sample_rate: int = 16000) -> LocalRe
             "e baixe um modelo pt-BR para "
             f"{default_model_dir()} (ex.: vosk-model-small-pt-0.3). "
             "Nenhum áudio sai do PC.")
+    except OSError as exc:
+        log.exception("Falha ao carregar a biblioteca nativa do Vosk")
+        return UnavailableRecognizer(
+            "Biblioteca nativa do Vosk não encontrada no EXE "
+            f"(_internal/vosk/libvosk.dll). {exc}. "
+            "Regenere o build com: pip install -r requirements-voice.txt "
+            "e build.bat. O HUB continua em modo texto.")
     model = find_model(model_path)
     if model is None:
         expected = default_model_dir()
+        extra = ""
+        if getattr(sys, "frozen", False):
+            extra = (f" No EXE, também procure em "
+                     f"{Path(sys.executable).resolve().parent / 'models'}.")
         return UnavailableRecognizer(
             f"Modelo Vosk não encontrado. Baixe um modelo pt-BR "
             f"(ex.: vosk-model-small-pt-0.3) e extraia em {expected} "
-            f"ou configure voice.model_path. Veja README, seção Voz.")
+            f"ou configure voice.model_path.{extra} Veja README, seção Voz.")
     rec = VoskRecognizer(model, sample_rate)
     if not rec.is_ready():
         return UnavailableRecognizer(rec.reason() or "Vosk indisponível.")

@@ -132,12 +132,19 @@ def main(argv: list[str]) -> int:
         "Sem modelo, o app funciona em modo texto + voz simulada.\n",
         encoding="utf-8")
 
-    step(8, "Incluindo arquivos extras")
+    step(8, "Incluindo arquivos extras + verificar Vosk nativo")
     for name in ("README.md",):
         src = ROOT / name
         if src.exists():
             shutil.copy2(src, exe_dir / name)
             print("copiado:", name)
+
+    vosk_ok = _ensure_vosk_native(exe_dir, voice.get("vosk", False))
+    if voice.get("vosk") and not vosk_ok:
+        return fail(
+            "Vosk estava instalado no build, mas "
+            "dist/JARVIS/_internal/vosk/ (libvosk.dll) não foi empacotado. "
+            "O EXE crasharia no import vosk (WinError 2).")
 
     step(9, "Verificando o EXE")
     exe = exe_dir / EXE_NAME
@@ -160,6 +167,32 @@ def main(argv: list[str]) -> int:
 
     print("\nBUILD CONCLUÍDO:", exe_dir)
     return 0
+
+
+def _ensure_vosk_native(exe_dir: Path, vosk_installed: bool) -> bool:
+    """Garante _internal/vosk/libvosk* no one-dir. Repara copiando o pacote
+    instalado se o PyInstaller tiver omitido os nativos."""
+    from jarvis.packaging.vosk_bundle import (bundle_has_native, copy_vosk_into,
+                                              native_basenames, vosk_package_dir)
+    internal = exe_dir / "_internal"
+    internal.mkdir(parents=True, exist_ok=True)
+    if bundle_has_native(internal):
+        names = sorted(p.name for p in (internal / "vosk").iterdir() if p.is_file())
+        print("vosk nativo no bundle:", names)
+        return True
+    if not vosk_installed:
+        print("Vosk não estava no ambiente de build — EXE sem reconhecimento nativo.")
+        return True
+    pkg = vosk_package_dir()
+    print("vosk ausente em _internal; copiando de", pkg)
+    written = copy_vosk_into(internal, pkg)
+    print("copiados:", len(written), "arquivos;", "nativos:", native_basenames(pkg))
+    ok = bundle_has_native(internal)
+    if ok:
+        print("vosk nativo reparado em", internal / "vosk")
+    else:
+        print("FALHA: ainda sem libvosk em", internal / "vosk")
+    return ok
 
 
 def _write_build_info(target_dir: Path, voice: dict, exe_path: Path | None) -> None:

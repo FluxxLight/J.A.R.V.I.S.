@@ -176,6 +176,15 @@ Script: `docs/audit/cycle4_final.py`.
 - **REGRESSÃO:** `tests/test_engine.py` + `tests/test_final.py::test_prompt_examples_text_and_voice`.
 - **STATUS:** CORRIGIDO.
 
+**BUG-013**
+- **BUG:** `J.A.R.V.I.S.exe` crasha no startup com `FileNotFoundError` em `os.add_dll_directory(...\_internal\vosk)`.
+- **CAUSA:** `vosk/__init__.py:open_dll()` exige a pasta física `dirname(__file__)` com `libvosk.dll`. O spec só punha `vosk` em `hiddenimports` — o .py ia para o PYZ e **nenhuma** DLL/pasta `_internal/vosk` era criada. `FileNotFoundError` não é `ImportError`, então `create_recognizer` não recuperava e o HUB nem abria.
+- **SEVERIDADE:** CRÍTICO.
+- **REPRODUÇÃO:** build no Windows com vosk instalado → abrir `dist\JARVIS\J.A.R.V.I.S.exe`.
+- **CORREÇÃO:** `jarvis/packaging/vosk_bundle.py` copia o pacote inteiro para `_internal/vosk/`; `hooks/hook-vosk.py` + `jarvis.spec`; `build.py` verifica/repara e **falha o build** se o nativo faltar; `create_recognizer` trata `OSError` para o HUB sobreviver a bundle incompleto.
+- **REGRESSÃO:** `tests/test_vosk_bundle.py`.
+- **STATUS:** CORRIGIDO (empacotamento). Execução do EXE: REQUER VALIDAÇÃO NO WINDOWS.
+
 **BUG-011**
 - **BUG:** captura de microfone sempre vazia no Windows com `sounddevice`.
 - **CAUSA:** `RawInputStream.read()` devolve `(data, overflowed)`; o código fazia `bytes(chunk)` no tuple.
